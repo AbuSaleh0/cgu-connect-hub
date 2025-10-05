@@ -1,12 +1,32 @@
 import { Button } from "@/components/ui/button";
-import { Heart, Home, Search, PlusSquare, MessageCircle } from "lucide-react";
+import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User } from "lucide-react";
+import { UserPublic } from "@/database";
 
 interface HeaderProps {
   onLoginClick: () => void;
   onSignUpClick: () => void;
+  onHomeClick?: () => void;
+  onExploreClick?: () => void;
+  onMessagesClick?: () => void;
+  onNotificationsClick?: () => void;
+  onCreateClick?: () => void;
+  isAuthenticated?: boolean;
+  currentUser?: UserPublic | null;
+  onLogout?: () => void;
 }
 
-const Header = ({ onLoginClick, onSignUpClick }: HeaderProps) => {
+const Header = ({ 
+  onLoginClick, 
+  onSignUpClick,
+  onHomeClick,
+  onExploreClick,
+  onMessagesClick,
+  onNotificationsClick,
+  onCreateClick,
+  isAuthenticated = false,
+  currentUser,
+  onLogout
+}: HeaderProps) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 md:px-8">
@@ -16,35 +36,69 @@ const Header = ({ onLoginClick, onSignUpClick }: HeaderProps) => {
         </div>
 
         <nav className="hidden md:flex items-center gap-6">
-          <button className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
+          <button 
+            onClick={onHomeClick || (() => console.log('Home clicked'))}
+            className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
+          >
             <Home className="h-5 w-5" />
             <span>Home</span>
           </button>
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+          <button 
+            onClick={onExploreClick || (() => console.log('Explore clicked'))}
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+          >
             <Search className="h-5 w-5" />
             <span>Explore</span>
           </button>
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+          <button 
+            onClick={onMessagesClick || (() => console.log('Messages clicked'))}
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+          >
             <MessageCircle className="h-5 w-5" />
             <span>Messages</span>
           </button>
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+          <button 
+            onClick={onNotificationsClick || (() => console.log('Notifications clicked'))}
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+          >
             <Heart className="h-5 w-5" />
             <span>Notifications</span>
           </button>
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+          <button 
+            onClick={onCreateClick || (() => console.log('Create clicked'))}
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+          >
             <PlusSquare className="h-5 w-5" />
             <span>Create</span>
           </button>
         </nav>
 
         <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={onLoginClick}>
-            Log in
-          </Button>
-          <Button variant="gradient" onClick={onSignUpClick}>
-            Sign up
-          </Button>
+          {isAuthenticated && currentUser ? (
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-8 w-8 rounded-full gradient-primary flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+                <span className="hidden md:block font-medium">
+                  {currentUser.username}
+                </span>
+              </div>
+              <Button variant="ghost" onClick={onLogout}>
+                <LogOut className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Log out</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={onLoginClick}>
+                Log in
+              </Button>
+              <Button variant="gradient" onClick={onSignUpClick}>
+                Sign up
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
