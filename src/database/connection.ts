@@ -80,7 +80,7 @@ class DatabaseConnection {
     const normalizedQuery = query.trim().toUpperCase();
     
     if (normalizedQuery.startsWith('INSERT INTO USERS')) {
-      const [username, email, password, avatar] = params;
+      const [username, email, password, avatar, displayName, bio, semester, department, profileSetupComplete] = params;
       const id = ++this.data.sequences.users;
       const now = new Date().toISOString();
       const user = {
@@ -89,6 +89,11 @@ class DatabaseConnection {
         email,
         password,
         avatar: avatar || '',
+        displayName: displayName || username,
+        bio: bio || '',
+        semester: semester || '',
+        department: department || '',
+        profileSetupComplete: profileSetupComplete || false,
         created_at: now,
         updated_at: now
       };
@@ -254,6 +259,44 @@ class DatabaseConnection {
       const otp = this.data.otp_codes.find(o => o.email === email && o.code === code && !o.used);
       if (otp) {
         otp.used = true;
+        this.saveData();
+        return { changes: 1 };
+      }
+      return { changes: 0 };
+    }
+
+    // Handle UPDATE users queries
+    if (normalizedQuery.includes('UPDATE USERS SET')) {
+      const userId = params[params.length - 1]; // Last parameter is always the user ID
+      const user = this.data.users.find(u => u.id === userId);
+      
+      if (user) {
+        // Parse the query to understand what fields to update
+        if (query.includes('displayName')) {
+          const displayNameIndex = params.findIndex((_, i) => query.split('?')[i]?.includes('displayName'));
+          if (displayNameIndex !== -1) user.displayName = params[displayNameIndex];
+        }
+        if (query.includes('bio')) {
+          const bioIndex = params.findIndex((_, i) => query.split('?')[i]?.includes('bio'));
+          if (bioIndex !== -1) user.bio = params[bioIndex];
+        }
+        if (query.includes('avatar')) {
+          const avatarIndex = params.findIndex((_, i) => query.split('?')[i]?.includes('avatar'));
+          if (avatarIndex !== -1) user.avatar = params[avatarIndex];
+        }
+        if (query.includes('semester')) {
+          const semesterIndex = params.findIndex((_, i) => query.split('?')[i]?.includes('semester'));
+          if (semesterIndex !== -1) user.semester = params[semesterIndex];
+        }
+        if (query.includes('department')) {
+          const departmentIndex = params.findIndex((_, i) => query.split('?')[i]?.includes('department'));
+          if (departmentIndex !== -1) user.department = params[departmentIndex];
+        }
+        if (query.includes('profileSetupComplete')) {
+          user.profileSetupComplete = true;
+        }
+        
+        user.updated_at = new Date().toISOString();
         this.saveData();
         return { changes: 1 };
       }

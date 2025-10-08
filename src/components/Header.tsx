@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User } from "lucide-react";
 import { UserPublic } from "@/database";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   onLoginClick: () => void;
@@ -27,6 +29,7 @@ const Header = ({
   currentUser,
   onLogout
 }: HeaderProps) => {
+  const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 md:px-8">
@@ -76,14 +79,20 @@ const Header = ({
         <div className="flex items-center gap-3">
           {isAuthenticated && currentUser ? (
             <>
-              <div className="flex items-center gap-2 text-sm">
-                <div className="h-8 w-8 rounded-full gradient-primary flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
-                </div>
+              <button 
+                onClick={() => navigate(`/${currentUser.username}`)}
+                className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={currentUser.avatar} />
+                  <AvatarFallback>
+                    {currentUser.displayName?.[0]?.toUpperCase() || currentUser.username?.[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 <span className="hidden md:block font-medium">
-                  {currentUser.username}
+                  {currentUser.displayName || currentUser.username}
                 </span>
-              </div>
+              </button>
               <Button variant="ghost" onClick={onLogout}>
                 <LogOut className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">Log out</span>

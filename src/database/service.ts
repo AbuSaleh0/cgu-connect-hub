@@ -16,7 +16,9 @@ import {
   AuthResult,
   OTPCode,
   CreateOTPData,
-  VerifyOTPData
+  VerifyOTPData,
+  GoogleUserData,
+  UpdateProfileData
 } from './types';
 
 export class DatabaseService {
@@ -26,11 +28,21 @@ export class DatabaseService {
   createUser(userData: CreateUserData): User {
     const hashedPassword = SHA256(userData.password).toString();
     const stmt = this.db.prepare(`
-      INSERT INTO users (username, email, password, avatar) 
-      VALUES (?, ?, ?, ?)
+      INSERT INTO users (username, email, password, avatar, displayName, bio, semester, department, profileSetupComplete) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
-    const result = stmt.run(userData.username, userData.email, hashedPassword, userData.avatar || null);
+    const result = stmt.run(
+      userData.username, 
+      userData.email, 
+      hashedPassword, 
+      userData.avatar || null,
+      userData.displayName || userData.username,
+      userData.bio || '',
+      userData.semester || '',
+      userData.department || '',
+      userData.profileSetupComplete || false
+    );
     return this.getUserById(Number(result.lastInsertRowid))!;
   }
 
@@ -488,6 +500,140 @@ export class DatabaseService {
     const stmt = this.db.prepare('DELETE FROM comments WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
+  }
+
+  // Google Authentication
+  loginOrRegisterWithGoogle(googleUser: GoogleUserData): AuthResult {
+    try {
+      // Validate email domain
+      if (!googleUser.email.endsWith('@cgu-odisha.ac.in')) {
+        return {
+          success: false,
+          error: 'Access restricted to CGU students. Please use your @cgu-odisha.ac.in email address.'
+        };
+      }
+
+      // Check if user already exists
+      let user = this.getUserByEmail(googleUser.email);
+      
+      if (user) {
+        // User exists, log them in
+        const publicUser = this.toPublicUser(user);
+        return {
+          success: true,
+          user: publicUser
+        };
+      } else {
+        // Create new user
+        const username = this.generateUsernameFromEmail(googleUser.email);
+        const userData: CreateUserData = {
+          username,
+          email: googleUser.email,
+          password: 'google_auth', // Placeholder password for Google users
+          avatar: googleUser.picture || '',
+          displayName: googleUser.name || username,
+          bio: '',
+          semester: '',
+          department: '',
+          profileSetupComplete: false
+        };
+        
+        user = this.createUser(userData);
+        const publicUser = this.toPublicUser(user);
+        
+        return {
+          success: true,
+          user: publicUser
+        };
+      }
+    } catch (error) {
+      console.error('Google auth error:', error);
+      return {
+        success: false,
+        error: 'Authentication failed. Please try again.'
+      };
+    }
+  }
+
+  private generateUsernameFromEmail(email: string): string {
+    // Extract username part from email and make it unique
+    const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9._]/g, '_');
+    
+    // Check if username exists
+    let username = baseUsername;
+    let counter = 1;
+    
+    while (this.getUserByUsername(username)) {
+      username = `${baseUsername}_${counter}`;
+      counter++;
+    }
+    
+    return username;
+  }
+
+  // Profile management
+  updateUserProfile(userId: number, profileData: UpdateProfileData): { success: boolean; error?: string } {
+    try {
+      const updates: string[] = [];
+      const values: any[] = [];
+      
+      if (profileData.displayName !== undefined) {
+        updates.push('displayName = ?');
+        values.push(profileData.displayName);
+      }
+      
+      if (profileData.bio !== undefined) {
+        updates.push('bio = ?');
+        values.push(profileData.bio);
+      }
+      
+      if (profileData.avatar !== undefined) {
+        updates.push('avatar = ?');
+        values.push(profileData.avatar);
+      }
+      
+      if (profileData.semester !== undefined) {
+        updates.push('semester = ?');
+        values.push(profileData.semester);
+      }
+      
+      if (profileData.department !== undefined) {
+        updates.push('department = ?');
+        values.push(profileData.department);
+      }
+      
+      if (updates.length === 0) {
+        return { success: false, error: 'No fields to update' };
+      }
+      
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(userId);
+      
+      const stmt = this.db.prepare(`
+        UPDATE users SET ${updates.join(', ')} WHERE id = ?
+      `);
+      
+      stmt.run(...values);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return { success: false, error: 'Failed to update profile' };
+    }
+  }
+
+  completeProfileSetup(userId: number): { success: boolean; error?: string } {
+    try {
+      const stmt = this.db.prepare(`
+        UPDATE users SET profileSetupComplete = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `);
+      
+      stmt.run(userId);
+      return { success: true };
+    } catch (error) {
+      console.error('Complete profile setup error:', error);
+      return { success: false, error: 'Failed to complete profile setup' };
+    }
   }
 
   // Utility methods

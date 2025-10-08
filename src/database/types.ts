@@ -4,6 +4,11 @@ export interface User {
   email: string;
   password: string;
   avatar?: string;
+  displayName: string;
+  bio: string;
+  semester: string;
+  department: string;
+  profileSetupComplete: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -13,6 +18,11 @@ export interface UserPublic {
   username: string;
   email: string;
   avatar?: string;
+  displayName: string;
+  bio: string;
+  semester: string;
+  department: string;
+  profileSetupComplete: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +70,11 @@ export interface CreateUserData {
   email: string;
   password: string;
   avatar?: string;
+  displayName?: string;
+  bio?: string;
+  semester?: string;
+  department?: string;
+  profileSetupComplete?: boolean;
 }
 
 export interface LoginData {
@@ -108,4 +123,20 @@ export interface CreateOTPData {
 export interface VerifyOTPData {
   email: string;
   code: string;
+}
+
+export interface GoogleUserData {
+  email: string;
+  name: string;
+  picture?: string;
+  given_name?: string;
+  family_name?: string;
+}
+
+export interface UpdateProfileData {
+  displayName?: string;
+  bio?: string;
+  avatar?: string;
+  semester?: string;
+  department?: string;
 }

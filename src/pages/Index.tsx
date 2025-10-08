@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import PostCard from "@/components/PostCard";
 import LoginOverlay from "@/components/LoginOverlay";
@@ -8,6 +9,8 @@ import { dbService, seedDatabase, sessionManager } from "@/database";
 import { convertDbPostToCardData, PostCardData } from "@/database/utils";
 
 const Index = () => {
+  const navigate = useNavigate();
+  
   // Load persisted auth view state on mount
   const loadAuthView = (): "feed" | "login" | "signup" => {
     try {
@@ -64,7 +67,14 @@ const Index = () => {
         // Check authentication status
         const loggedIn = sessionManager.isLoggedIn();
         setIsAuthenticated(loggedIn);
-                setUser(sessionManager.getCurrentUser());
+        const currentUser = sessionManager.getCurrentUser();
+        setUser(currentUser);
+        
+        // Redirect to profile setup if user hasn't completed it
+        if (loggedIn && currentUser && !currentUser.profileSetupComplete) {
+          navigate('/profile-setup');
+          return;
+        }
 
         // Seed database if it's empty
         seedDatabase();
