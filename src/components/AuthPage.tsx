@@ -39,22 +39,22 @@ const AuthPage = ({ mode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) 
         
         const googleUser: GoogleUserData = await response.json();
         
-        // Authenticate with our backend
-        const result = dbService.loginOrRegisterWithGoogle(googleUser);
+        // Authenticate with our backend based on mode
+        const result = mode === 'login' 
+          ? dbService.loginWithGoogle(googleUser)
+          : dbService.signupWithGoogle(googleUser);
         
         if (result.success && result.user) {
           sessionManager.login(result.user);
           
-          // Check if this is a new user (no password setup)
-          if (!result.user.passwordSetupComplete && result.user.password === 'google_auth') {
+          // For signup mode, redirect to password setup for new users
+          if (mode === 'signup' && !result.user.passwordSetupComplete) {
             navigate('/password-setup');
           } else if (!result.user.profileSetupComplete) {
             navigate('/profile-setup');
           } else {
             onAuthSuccess();
           }
-        } else if (result.error?.includes('already registered')) {
-          setError('You already have an account. Please use the login option instead.');
         } else {
           setError(result.error || "Authentication failed");
         }

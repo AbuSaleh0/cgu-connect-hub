@@ -503,8 +503,43 @@ export class DatabaseService {
     return result.changes > 0;
   }
 
-  // Google Authentication
-  loginOrRegisterWithGoogle(googleUser: GoogleUserData): AuthResult {
+  // Google Authentication for Login
+  loginWithGoogle(googleUser: GoogleUserData): AuthResult {
+    try {
+      // Validate email domain
+      if (!googleUser.email.endsWith('@cgu-odisha.ac.in')) {
+        return {
+          success: false,
+          error: 'Access restricted to CGU students. Please use your @cgu-odisha.ac.in email address.'
+        };
+      }
+
+      // Check if user exists
+      const user = this.getUserByEmail(googleUser.email);
+      
+      if (user) {
+        const publicUser = this.toPublicUser(user);
+        return {
+          success: true,
+          user: publicUser
+        };
+      } else {
+        return {
+          success: false,
+          error: 'No account found. Please sign up first.'
+        };
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      return {
+        success: false,
+        error: 'Login failed. Please try again.'
+      };
+    }
+  }
+
+  // Google Authentication for Signup
+  signupWithGoogle(googleUser: GoogleUserData): AuthResult {
     try {
       // Validate email domain
       if (!googleUser.email.endsWith('@cgu-odisha.ac.in')) {
@@ -515,45 +550,42 @@ export class DatabaseService {
       }
 
       // Check if user already exists
-      let user = this.getUserByEmail(googleUser.email);
+      const existingUser = this.getUserByEmail(googleUser.email);
       
-      if (user) {
-        // User exists - check if trying to signup again
-        const publicUser = this.toPublicUser(user);
+      if (existingUser) {
         return {
           success: false,
-          error: 'Email already registered. Please login instead.',
-          user: publicUser
-        };
-      } else {
-        // Create new user
-        const username = this.generateUsernameFromEmail(googleUser.email);
-        const userData: CreateUserData = {
-          username,
-          email: googleUser.email,
-          password: 'google_auth', // Placeholder password for Google users
-          avatar: googleUser.picture || '',
-          displayName: googleUser.name || username,
-          bio: '',
-          semester: '',
-          department: '',
-          profileSetupComplete: false,
-          passwordSetupComplete: false
-        };
-        
-        user = this.createUser(userData);
-        const publicUser = this.toPublicUser(user);
-        
-        return {
-          success: true,
-          user: publicUser
+          error: 'Email already registered. Please login instead.'
         };
       }
+
+      // Create new user
+      const username = this.generateUsernameFromEmail(googleUser.email);
+      const userData: CreateUserData = {
+        username,
+        email: googleUser.email,
+        password: 'google_auth', // Placeholder password for Google users
+        avatar: googleUser.picture || '',
+        displayName: googleUser.name || username,
+        bio: '',
+        semester: '',
+        department: '',
+        profileSetupComplete: false,
+        passwordSetupComplete: false
+      };
+      
+      const user = this.createUser(userData);
+      const publicUser = this.toPublicUser(user);
+      
+      return {
+        success: true,
+        user: publicUser
+      };
     } catch (error) {
-      console.error('Google auth error:', error);
+      console.error('Google signup error:', error);
       return {
         success: false,
-        error: 'Authentication failed. Please try again.'
+        error: 'Signup failed. Please try again.'
       };
     }
   }
