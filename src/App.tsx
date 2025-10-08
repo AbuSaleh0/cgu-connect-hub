@@ -7,6 +7,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import ProfileSetup from "./pages/ProfileSetup";
+import PasswordSetup from "./pages/PasswordSetup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/password-setup" element={<PasswordSetup />} />
               <Route path="/profile-setup" element={<ProfileSetup />} />
               <Route path="/:username" element={<Profile />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

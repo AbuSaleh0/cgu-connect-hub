@@ -45,12 +45,16 @@ const AuthPage = ({ mode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) 
         if (result.success && result.user) {
           sessionManager.login(result.user);
           
-          // Check if user needs to complete profile setup
-          if (!result.user.profileSetupComplete) {
+          // Check if this is a new user (no password setup)
+          if (!result.user.passwordSetupComplete && result.user.password === 'google_auth') {
+            navigate('/password-setup');
+          } else if (!result.user.profileSetupComplete) {
             navigate('/profile-setup');
           } else {
             onAuthSuccess();
           }
+        } else if (result.error?.includes('already registered')) {
+          setError('You already have an account. Please use the login option instead.');
         } else {
           setError(result.error || "Authentication failed");
         }

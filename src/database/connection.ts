@@ -80,7 +80,7 @@ class DatabaseConnection {
     const normalizedQuery = query.trim().toUpperCase();
     
     if (normalizedQuery.startsWith('INSERT INTO USERS')) {
-      const [username, email, password, avatar, displayName, bio, semester, department, profileSetupComplete] = params;
+      const [username, email, password, avatar, displayName, bio, semester, department, profileSetupComplete, passwordSetupComplete] = params;
       const id = ++this.data.sequences.users;
       const now = new Date().toISOString();
       const user = {
@@ -94,6 +94,7 @@ class DatabaseConnection {
         semester: semester || '',
         department: department || '',
         profileSetupComplete: profileSetupComplete || false,
+        passwordSetupComplete: passwordSetupComplete || false,
         created_at: now,
         updated_at: now
       };
@@ -294,6 +295,13 @@ class DatabaseConnection {
         }
         if (query.includes('profileSetupComplete')) {
           user.profileSetupComplete = true;
+        }
+        if (query.includes('passwordSetupComplete')) {
+          user.passwordSetupComplete = true;
+        }
+        if (query.includes('password =') && !query.includes('profileSetupComplete')) {
+          const passwordIndex = params.findIndex((_, i) => query.split('?')[i]?.includes('password'));
+          if (passwordIndex !== -1) user.password = params[passwordIndex];
         }
         
         user.updated_at = new Date().toISOString();

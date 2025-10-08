@@ -28,8 +28,8 @@ export class DatabaseService {
   createUser(userData: CreateUserData): User {
     const hashedPassword = SHA256(userData.password).toString();
     const stmt = this.db.prepare(`
-      INSERT INTO users (username, email, password, avatar, displayName, bio, semester, department, profileSetupComplete) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (username, email, password, avatar, displayName, bio, semester, department, profileSetupComplete, passwordSetupComplete) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     const result = stmt.run(
@@ -41,7 +41,8 @@ export class DatabaseService {
       userData.bio || '',
       userData.semester || '',
       userData.department || '',
-      userData.profileSetupComplete || false
+      userData.profileSetupComplete || false,
+      userData.passwordSetupComplete || false
     );
     return this.getUserById(Number(result.lastInsertRowid))!;
   }
@@ -517,10 +518,11 @@ export class DatabaseService {
       let user = this.getUserByEmail(googleUser.email);
       
       if (user) {
-        // User exists, log them in
+        // User exists - check if trying to signup again
         const publicUser = this.toPublicUser(user);
         return {
-          success: true,
+          success: false,
+          error: 'Email already registered. Please login instead.',
           user: publicUser
         };
       } else {
@@ -535,7 +537,8 @@ export class DatabaseService {
           bio: '',
           semester: '',
           department: '',
-          profileSetupComplete: false
+          profileSetupComplete: false,
+          passwordSetupComplete: false
         };
         
         user = this.createUser(userData);
@@ -633,6 +636,21 @@ export class DatabaseService {
     } catch (error) {
       console.error('Complete profile setup error:', error);
       return { success: false, error: 'Failed to complete profile setup' };
+    }
+  }
+
+  setupPassword(userId: number, password: string): { success: boolean; error?: string } {
+    try {
+      const hashedPassword = SHA256(password).toString();
+      const stmt = this.db.prepare(`
+        UPDATE users SET password = ?, passwordSetupComplete = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `);
+      
+      stmt.run(hashedPassword, userId);
+      return { success: true };
+    } catch (error) {
+      console.error('Setup password error:', error);
+      return { success: false, error: 'Failed to setup password' };
     }
   }
 
