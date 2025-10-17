@@ -204,8 +204,8 @@ export const useUnreadCount = (userId: number | null) => {
     const updateUnreadCount = async () => {
       try {
         // Import here to avoid circular dependency
-        const { hybridDbService } = await import('@/database');
-        const count = await hybridDbService.getUnreadMessageCount(userId);
+        const { dbService } = await import('@/database');
+        const count = await dbService.getUnreadMessageCount(userId);
         setUnreadCount(count);
       } catch (error) {
         console.error('Error updating unread count:', error);

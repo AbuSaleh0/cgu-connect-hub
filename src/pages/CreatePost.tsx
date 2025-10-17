@@ -266,7 +266,7 @@ const CreatePost = () => {
     setOriginalImage("");
   };
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!currentUser || !image) {
       console.log("Missing user or image:", { user: !!currentUser, image: !!image });
       return;
@@ -283,7 +283,7 @@ const CreatePost = () => {
         caption 
       });
       
-      const newPost = dbService.createPost({
+      const newPost = await dbService.createPost({
         user_id: currentUser.id,
         image: image,
         caption

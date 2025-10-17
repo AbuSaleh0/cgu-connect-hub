@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Heart, MessageCircle, UserPlus } from "lucide-react";
 import { dbService, sessionManager } from "@/database";
-import { Notification } from "@/database/types";
+import { Notification, User } from "@/database/types";
 import MobileBottomNav from "@/components/MobileBottomNav";
 
 const Notifications = () => {
   const navigate = useNavigate();
   const currentUser = sessionManager.getCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [fromUsers, setFromUsers] = useState<{ [key: number]: User }>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,14 +23,28 @@ const Notifications = () => {
     loadNotifications();
   }, [currentUser, navigate]);
 
-  const loadNotifications = () => {
+  const loadNotifications = async () => {
     if (currentUser) {
       try {
-        const userNotifications = dbService.getUserNotifications(currentUser.id);
+        const userNotifications = await dbService.getUserNotifications(currentUser.id);
         setNotifications(userNotifications);
         
+        // Load from users for each notification
+        const users: { [key: number]: User } = {};
+        for (const notification of userNotifications) {
+          try {
+            const fromUser = await dbService.getUserById(notification.from_user_id);
+            if (fromUser) {
+              users[notification.from_user_id] = fromUser;
+            }
+          } catch (error) {
+            console.error(`Error loading user ${notification.from_user_id}:`, error);
+          }
+        }
+        setFromUsers(users);
+        
         // Mark notifications as read
-        dbService.markNotificationsAsRead(currentUser.id);
+        await dbService.markNotificationsAsRead(currentUser.id);
       } catch (error) {
         console.error('Error loading notifications:', error);
         setNotifications([]);
@@ -51,10 +66,10 @@ const Notifications = () => {
     }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
     try {
       if (notification.type === 'follow') {
-        const fromUser = dbService.getUserById(notification.from_user_id);
+        const fromUser = fromUsers[notification.from_user_id];
         if (fromUser) {
           navigate(`/${fromUser.username}`);
         }
@@ -87,7 +102,7 @@ const Notifications = () => {
         <div className="space-y-4">
           {notifications.length > 0 ? (
             notifications.map((notification) => {
-              const fromUser = dbService.getUserById(notification.from_user_id);
+              const fromUser = fromUsers[notification.from_user_id];
               return (
                 <div
                   key={notification.id}

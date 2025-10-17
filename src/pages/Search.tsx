@@ -14,10 +14,12 @@ const Search = () => {
   const [searchResults, setSearchResults] = useState<UserPublic[]>([]);
   const [recommendations, setRecommendations] = useState<UserPublic[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
 
-  const loadRecommendations = () => {
+  const loadRecommendations = async () => {
+    setLoadingRecommendations(true);
     try {
-      const allUsers = dbService.getAllUsers();
+      const allUsers = await dbService.getAllUsers();
       const userRecommendations = allUsers
         .map(user => {
           const { password, ...publicUser } = user;
@@ -29,10 +31,12 @@ const Search = () => {
     } catch (error) {
       console.error('Error loading recommendations:', error);
       setRecommendations([]);
+    } finally {
+      setLoadingRecommendations(false);
     }
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       return;
@@ -40,7 +44,7 @@ const Search = () => {
 
     setLoading(true);
     try {
-      const allUsers = dbService.getAllUsers();
+      const allUsers = await dbService.getAllUsers();
       const results = allUsers
         .filter(user => 
           user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -94,30 +98,36 @@ const Search = () => {
         </div>
 
         <div className="space-y-4">
-          {!searchQuery.trim() && recommendations.length > 0 && (
+          {!searchQuery.trim() && (
             <>
               <h2 className="text-lg font-semibold mb-4">Recommended Users</h2>
-              {recommendations.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/${user.username}`)}
-                >
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={user.avatar} />
-                    <AvatarFallback>
-                      {user.displayName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-semibold">{user.displayName || user.username}</p>
-                    <p className="text-sm text-muted-foreground">@{user.username}</p>
-                    {user.bio && (
-                      <p className="text-sm text-muted-foreground mt-1">{user.bio}</p>
-                    )}
+              {loadingRecommendations ? (
+                <div className="text-center text-muted-foreground">Loading recommendations...</div>
+              ) : recommendations.length > 0 ? (
+                recommendations.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/${user.username}`)}
+                  >
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={user.avatar} />
+                      <AvatarFallback>
+                        {user.displayName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-semibold">{user.displayName || user.username}</p>
+                      <p className="text-sm text-muted-foreground">@{user.username}</p>
+                      {user.bio && (
+                        <p className="text-sm text-muted-foreground mt-1">{user.bio}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground">No users available</div>
+              )}
             </>
           )}
           
@@ -153,7 +163,7 @@ const Search = () => {
             </>
           )}
           
-          {!searchQuery.trim() && recommendations.length === 0 && (
+          {!searchQuery.trim() && !loadingRecommendations && recommendations.length === 0 && (
             <div className="text-center text-muted-foreground">No users available</div>
           )}
         </div>

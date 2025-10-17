@@ -116,7 +116,7 @@ const ProfileSetup = () => {
         console.log("Setup completion result:", setupResult);
         
         if (setupResult.success) {
-          const updatedUser = dbService.getUserById(currentUser.id);
+          const updatedUser = await dbService.getUserById(currentUser.id);
           console.log("Updated user:", updatedUser);
           
           if (updatedUser) {

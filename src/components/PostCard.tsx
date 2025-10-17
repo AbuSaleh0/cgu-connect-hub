@@ -39,9 +39,16 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
 
   // Check if post is saved on component mount
   useEffect(() => {
-    if (currentUser && isAuthenticated) {
-      setIsSaved(dbService.isPostSaved(currentUser.id, Number(post.id)));
-    }
+    const checkSaveStatus = async () => {
+      if (currentUser && isAuthenticated) {
+        try {
+          setIsSaved(dbService.isPostSaved(currentUser.id, Number(post.id)));
+        } catch (error) {
+          console.error('Error checking save status:', error);
+        }
+      }
+    };
+    checkSaveStatus();
   }, [currentUser, isAuthenticated, post.id]);
 
   const handleLike = () => {

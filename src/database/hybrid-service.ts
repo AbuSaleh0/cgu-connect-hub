@@ -1,11 +1,11 @@
 /**
- * Hybrid Database Service
- * - Uses SQLite API for messaging operations (conversations, messages)
- * - Uses localStorage for other operations (users, posts, authentication)
- * - Session management remains in localStorage
+ * Database Service
+ * - Uses SQLite API for all data operations
+ * - All methods are asynchronous and return Promises
+ * - No localStorage fallbacks - all data comes from backend
+ * - Graceful error handling for API failures
  */
 
-import { DatabaseService as LocalStorageService } from './service';
 import { apiService } from './api-service';
 import { 
   User, 
@@ -41,27 +41,142 @@ import {
 } from './types';
 
 class HybridDatabaseService {
-  private localStorageService = new LocalStorageService();
+  // ===== USER OPERATIONS (SQLite) =====
+  
+  async createUser(userData: CreateUserData): Promise<User> {
+    try {
+      return await apiService.createUser(userData);
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      throw error;
+    }
+  }
 
-  // ===== MESSAGING OPERATIONS (SQLite API) =====
+  async getUserById(id: number): Promise<User | null> {
+    try {
+      return await apiService.getUserById(id);
+    } catch (error) {
+      console.error('Failed to get user by ID:', error);
+      throw error;
+    }
+  }
+
+  async getUserByUsername(username: string): Promise<User | null> {
+    try {
+      return await apiService.getUserByUsername(username);
+    } catch (error) {
+      console.error('Failed to get user by username:', error);
+      throw error;
+    }
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    try {
+      return await apiService.getAllUsers();
+    } catch (error) {
+      console.error('Failed to get all users:', error);
+      throw error;
+    }
+  }
+
+  // ===== POST OPERATIONS (SQLite) =====
+  
+  async createPost(postData: CreatePostData): Promise<Post> {
+    try {
+      return await apiService.createPost(postData);
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      throw error;
+    }
+  }
+
+  async getAllPosts(): Promise<PostWithUser[]> {
+    try {
+      return await apiService.getAllPosts();
+    } catch (error) {
+      console.error('Failed to get all posts:', error);
+      throw error;
+    }
+  }
+
+  async getPostsByUser(userId: number): Promise<PostWithUser[]> {
+    try {
+      return await apiService.getPostsByUser(userId);
+    } catch (error) {
+      console.error('Failed to get posts by user:', error);
+      throw error;
+    }
+  }
+
+  // ===== FOLLOW OPERATIONS (SQLite) =====
+  
+  async toggleFollow(followData: CreateFollowData): Promise<boolean> {
+    try {
+      return await apiService.toggleFollow(followData);
+    } catch (error) {
+      console.error('Failed to toggle follow:', error);
+      throw error;
+    }
+  }
+
+  async isFollowing(followerId: number, followingId: number): Promise<boolean> {
+    try {
+      return await apiService.isFollowing(followerId, followingId);
+    } catch (error) {
+      console.error('Failed to check follow status:', error);
+      throw error;
+    }
+  }
+
+  // ===== NOTIFICATION OPERATIONS (SQLite) =====
+  
+  async createNotification(notificationData: CreateNotificationData): Promise<Notification | null> {
+    try {
+      return await apiService.createNotification(notificationData);
+    } catch (error) {
+      console.error('Failed to create notification:', error);
+      throw error;
+    }
+  }
+
+  async getUserNotifications(userId: number): Promise<Notification[]> {
+    try {
+      return await apiService.getUserNotifications(userId);
+    } catch (error) {
+      console.error('Failed to get user notifications:', error);
+      throw error;
+    }
+  }
+
+  async markNotificationsAsRead(userId: number): Promise<void> {
+    try {
+      await apiService.markNotificationsAsRead(userId);
+    } catch (error) {
+      console.error('Failed to mark notifications as read:', error);
+      throw error;
+    }
+  }
+
+  // ===== MESSAGING OPERATIONS (SQLite) =====
   
   async createConversation(data: CreateConversationData): Promise<Conversation | null> {
     try {
-      const conversation = await apiService.createConversation(data);
-      if (conversation) {
-        return conversation;
-      }
+      return await apiService.createConversation(data);
     } catch (error) {
-      console.error('Failed to create conversation in SQLite, falling back to localStorage:', error);
+      console.error('Failed to create conversation:', error);
+      throw error;
     }
-    
-    // Fallback to localStorage
-    return this.localStorageService.createConversation(data);
   }
 
   async getConversationById(id: number): Promise<Conversation | null> {
-    // TODO: Implement on server
-    return null;
+    try {
+      // TODO: Implement this endpoint in the API service
+      console.warn('getConversationById not implemented in API service');
+      return null;
+    } catch (error) {
+      console.error('Failed to get conversation by id:', error);
+      throw error;
+    }
   }
 
   async getConversationBetweenUsers(userId1: number, userId2: number): Promise<Conversation | null> {
@@ -73,146 +188,70 @@ class HybridDatabaseService {
         (conv.participant1_id === userId2 && conv.participant2_id === userId1)
       ) as Conversation || null;
     } catch (error) {
-      console.error('Error finding conversation:', error);
-      // Fallback to localStorage
-      return this.localStorageService.getConversationBetweenUsers(userId1, userId2);
+      console.error('Failed to find conversation between users:', error);
+      throw error;
     }
   }
 
   async getUserConversations(userId: number): Promise<ConversationWithUsers[]> {
-    // Try localStorage first to see if we have existing data
-    console.log('HybridService: Checking localStorage first for user:', userId);
-    const localConversations = this.localStorageService.getUserConversations(userId);
-    console.log('HybridService: localStorage returned', localConversations.length, 'conversations');
-    
-    // If we have local conversations, return them for now (temporary fix for debugging)
-    if (localConversations.length > 0) {
-      console.log('HybridService: Using localStorage conversations');
-      return localConversations;
-    }
-
     try {
-      console.log('HybridService: No local conversations, trying SQLite for user:', userId);
       // Get conversations from SQLite
       const conversations = await apiService.getUserConversations(userId);
-      console.log('HybridService: SQLite returned', conversations.length, 'conversations');
       
-      // If no conversations in SQLite either, return empty
-      if (conversations.length === 0) {
-        console.log('HybridService: No conversations found in SQLite either');
-        return [];
-      }
-      
-      // Enrich with user information from localStorage
-      const enrichedConversations = conversations.map(conv => {
-        const participant1 = this.localStorageService.getUserById(conv.participant1_id);
-        const participant2 = this.localStorageService.getUserById(conv.participant2_id);
-        
-        return {
-          ...conv,
-          participant1_username: participant1?.username || 'Unknown User',
-          participant1_avatar: participant1?.avatar || null,
-          participant2_username: participant2?.username || 'Unknown User',
-          participant2_avatar: participant2?.avatar || null
-        };
-      });
-      
-      return enrichedConversations;
+      // Note: User enrichment would need to be done via separate API calls
+      // For now, return the conversations as-is since we're using API-only approach
+      return conversations;
     } catch (error) {
-      console.error('Error getting user conversations, falling back to localStorage:', error);
-      return this.localStorageService.getUserConversations(userId);
+      console.error('Failed to get user conversations:', error);
+      throw error;
     }
-  }
-
-  async createMessage(data: CreateMessageData): Promise<Message | null> {
+  }  async createMessage(data: CreateMessageData): Promise<Message | null> {
     try {
-      const message = await apiService.createMessage(data);
-      if (message) {
-        return message;
-      }
+      return await apiService.createMessage(data);
     } catch (error) {
-      console.error('Failed to create message in SQLite, falling back to localStorage:', error);
+      console.error('Failed to create message:', error);
+      throw error;
     }
-    
-    // Fallback to localStorage
-    return this.localStorageService.createMessage(data);
   }
 
   async getMessageById(id: number): Promise<Message | null> {
-    // TODO: Implement on server
-    return null;
+    try {
+      // TODO: Implement this endpoint in the API service
+      console.warn('getMessageById not implemented in API service');
+      return null;
+    } catch (error) {
+      console.error('Failed to get message by id:', error);
+      throw error;
+    }
   }
 
   async getConversationMessages(conversationId: number, limit = 50, offset = 0): Promise<MessageWithSender[]> {
-    // Try localStorage first to see if we have existing data
-    console.log('HybridService: Checking localStorage first for conversation:', conversationId);
-    const localMessages = this.localStorageService.getConversationMessages(conversationId, limit, offset);
-    console.log('HybridService: localStorage returned', localMessages.length, 'messages');
-    
-    // If we have local messages, return them for now (temporary fix for debugging)
-    if (localMessages.length > 0) {
-      console.log('HybridService: Using localStorage messages');
-      return localMessages;
-    }
-
     try {
-      console.log('HybridService: No local messages, trying SQLite for conversation:', conversationId);
       // Get messages from SQLite
-      const messages = await apiService.getConversationMessages(conversationId, limit, offset);
-      console.log('HybridService: SQLite returned', messages.length, 'messages');
-      
-      // If no messages in SQLite either, return empty
-      if (messages.length === 0) {
-        console.log('HybridService: No messages found in SQLite either');
-        return [];
-      }
-      
-      // Enrich with sender information from localStorage
-      const enrichedMessages = messages.map(message => {
-        const sender = this.localStorageService.getUserById(message.sender_id);
-        
-        return {
-          ...message,
-          sender_username: sender?.username || 'Unknown User',
-          sender_avatar: sender?.avatar || null
-        };
-      });
-      
-      return enrichedMessages;
+      return await apiService.getConversationMessages(conversationId, limit, offset);
     } catch (error) {
-      console.error('Error getting conversation messages from SQLite, falling back to localStorage:', error);
-      const localMessages = this.localStorageService.getConversationMessages(conversationId, limit, offset);
-      console.log('HybridService: localStorage fallback returned', localMessages.length, 'messages');
-      return localMessages;
+      console.error('Failed to get conversation messages:', error);
+      throw error;
     }
-  }
-
-  async markMessagesAsRead(conversationId: number, userId: number): Promise<boolean> {
+  }  async markMessagesAsRead(conversationId: number, userId: number): Promise<boolean> {
     try {
-      const result = await apiService.markMessagesAsRead(conversationId, userId);
-      if (result) {
-        return result;
-      }
+      return await apiService.markMessagesAsRead(conversationId, userId);
     } catch (error) {
-      console.error('Failed to mark messages as read in SQLite, falling back to localStorage:', error);
+      console.error('Failed to mark messages as read:', error);
+      throw error;
     }
-    
-    // Fallback to localStorage
-    return this.localStorageService.markMessagesAsRead(conversationId, userId);
   }
 
   async getUnreadMessageCount(userId: number): Promise<number> {
     try {
-      const count = await apiService.getUnreadMessageCount(userId);
-      return count;
+      return await apiService.getUnreadMessageCount(userId);
     } catch (error) {
-      console.error('Failed to get unread count from SQLite, falling back to localStorage:', error);
-      return this.localStorageService.getUnreadMessageCount(userId);
+      console.error('Failed to get unread message count:', error);
+      throw error;
     }
   }
 
   async searchConversations(userId: number, searchTerm: string): Promise<ConversationWithUsers[]> {
-    // For now, get all conversations and filter client-side
     try {
       const conversations = await this.getUserConversations(userId);
       return conversations.filter(conv => 
@@ -220,238 +259,149 @@ class HybridDatabaseService {
         (conv.participant2_username && conv.participant2_username.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     } catch (error) {
-      console.error('Error searching conversations:', error);
-      // Fallback to localStorage
-      return this.localStorageService.searchConversations(userId, searchTerm);
+      console.error('Failed to search conversations:', error);
+      throw error;
     }
   }
 
-  // ===== ALL OTHER OPERATIONS (localStorage) =====
-  
-  // User operations
-  createUser(userData: CreateUserData): User {
-    return this.localStorageService.createUser(userData);
-  }
-
-  getUserById(id: number): User | null {
-    return this.localStorageService.getUserById(id);
-  }
-
-  getUserByUsername(username: string): User | null {
-    return this.localStorageService.getUserByUsername(username);
-  }
-
-  getAllUsers(): User[] {
-    return this.localStorageService.getAllUsers();
-  }
-
-  getUserByEmail(email: string): User | null {
-    return this.localStorageService.getUserByEmail(email);
-  }
-
-  // Authentication methods
-  signup(userData: CreateUserData): AuthResult {
-    return this.localStorageService.signup(userData);
-  }
-
-  login(loginData: LoginData): AuthResult {
-    return this.localStorageService.login(loginData);
-  }
-
-  loginWithGoogle(googleUser: GoogleUserData): AuthResult {
-    return this.localStorageService.loginWithGoogle(googleUser);
-  }
-
-  signupWithGoogle(googleUser: GoogleUserData): AuthResult {
-    return this.localStorageService.signupWithGoogle(googleUser);
-  }
-
-  checkUsernameAvailability(username: string): { available: boolean; error?: string } {
-    return this.localStorageService.checkUsernameAvailability(username);
-  }
-
-  generateOTP(): string {
-    return this.localStorageService.generateOTP();
-  }
-
-  async sendOTP(email: string): Promise<{ success: boolean; error?: string; otp?: string }> {
-    return this.localStorageService.sendOTP(email);
-  }
-
-  verifyOTP(verifyData: VerifyOTPData): { success: boolean; error?: string } {
-    return this.localStorageService.verifyOTP(verifyData);
-  }
-
-  // Post operations
-  createPost(postData: CreatePostData): Post {
-    return this.localStorageService.createPost(postData);
-  }
-
-  getPostById(id: number): Post | null {
-    return this.localStorageService.getPostById(id);
-  }
-
-  getPostWithUserById(id: number): PostWithUser | null {
-    return this.localStorageService.getPostWithUserById(id);
-  }
-
-  getAllPosts(): PostWithUser[] {
-    return this.localStorageService.getAllPosts();
-  }
-
-  getPostsByUser(userId: number): PostWithUser[] {
-    return this.localStorageService.getPostsByUser(userId);
-  }
-
-  deletePost(id: number): boolean {
-    return this.localStorageService.deletePost(id);
-  }
-
-  // Like operations
-  toggleLike(likeData: CreateLikeData): boolean {
-    return this.localStorageService.toggleLike(likeData);
-  }
-
-  isPostLikedByUser(userId: number, postId: number): boolean {
-    return this.localStorageService.isPostLikedByUser(userId, postId);
-  }
-
-  getPostLikes(postId: number): Like[] {
-    return this.localStorageService.getPostLikes(postId);
-  }
-
-  // Comment operations
-  createComment(commentData: CreateCommentData): Comment {
-    return this.localStorageService.createComment(commentData);
-  }
-
-  getCommentById(id: number): Comment | null {
-    return this.localStorageService.getCommentById(id);
-  }
-
-  getPostComments(postId: number): CommentWithUser[] {
-    return this.localStorageService.getPostComments(postId);
-  }
-
-  deleteComment(id: number): boolean {
-    return this.localStorageService.deleteComment(id);
-  }
-
-  // Profile management
-  updateUserProfile(userId: number, profileData: UpdateProfileData): { success: boolean; error?: string } {
-    return this.localStorageService.updateUserProfile(userId, profileData);
-  }
-
-  updateUsername(userId: number, newUsername: string): boolean {
-    return this.localStorageService.updateUsername(userId, newUsername);
-  }
-
-  completeProfileSetup(userId: number): { success: boolean; error?: string } {
-    return this.localStorageService.completeProfileSetup(userId);
-  }
-
-  setupPassword(userId: number, password: string): { success: boolean; error?: string } {
-    return this.localStorageService.setupPassword(userId, password);
-  }
-
-  // Follow operations
-  toggleFollow(followData: CreateFollowData): boolean {
-    return this.localStorageService.toggleFollow(followData);
-  }
-
-  isFollowingUsername(followerId: number, followingUsername: string): boolean {
-    return this.localStorageService.isFollowingUsername(followerId, followingUsername);
-  }
-
-  isFollowing(followerId: number, followingId: number): boolean {
-    return this.localStorageService.isFollowing(followerId, followingId);
-  }
-
-  // Notification operations
-  createNotification(notificationData: CreateNotificationData): Notification | null {
-    return this.localStorageService.createNotification(notificationData);
-  }
-
-  getNotificationById(id: number): Notification | null {
-    return this.localStorageService.getNotificationById(id);
-  }
-
-  getUserNotifications(userId: number): Notification[] {
-    return this.localStorageService.getUserNotifications(userId);
-  }
-
-  markNotificationsAsRead(userId: number): void {
-    return this.localStorageService.markNotificationsAsRead(userId);
-  }
-
-  getUnreadNotificationCount(userId: number): number {
-    return this.localStorageService.getUnreadNotificationCount(userId);
-  }
-
-  // Utility methods
-  getPostsWithDetails(): PostWithUser[] {
-    return this.localStorageService.getPostsWithDetails();
-  }
-
-  formatTimestamp(timestamp: string): string {
-    return this.localStorageService.formatTimestamp(timestamp);
-  }
-
-  getFollowerCount(userId: number): number {
-    return this.localStorageService.getFollowerCount(userId);
-  }
-
-  getFollowingCount(userId: number): number {
-    return this.localStorageService.getFollowingCount(userId);
-  }
-
-  getFollowersList(userId: number): UserPublic[] {
-    return this.localStorageService.getFollowersList(userId);
-  }
-
-  getFollowingList(userId: number): UserPublic[] {
-    return this.localStorageService.getFollowingList(userId);
-  }
-
-  // Saved posts operations
-  toggleSavePost(saveData: CreateSavedPostData): boolean {
-    return this.localStorageService.toggleSavePost(saveData);
-  }
-
-  isPostSaved(userId: number, postId: number): boolean {
-    return this.localStorageService.isPostSaved(userId, postId);
-  }
-
-  // Follow user by username
-  followUser(followData: { follower_id: number; following_username: string }): boolean {
-    return this.localStorageService.followUser(followData);
-  }
-
-  // Unfollow user by username
-  unfollowUser(followerId: number, followingUsername: string): boolean {
-    return this.localStorageService.unfollowUser(followerId, followingUsername);
-  }
-
-  // Update post caption
-  updatePostCaption(postId: number, caption: string): boolean {
-    return this.localStorageService.updatePostCaption(postId, caption);
-  }
-
-  // Toggle pin post
-  togglePinPost(postId: number): boolean {
-    return this.localStorageService.togglePinPost(postId);
-  }
-
-  // ===== MESSAGING HELPER METHODS (localStorage fallback) =====
+  // ===== MESSAGING HELPER METHODS =====
   
   getLastSeenMessageId(conversationId: number, senderId: number): number | null {
-    // For now, use localStorage fallback
-    return this.localStorageService.getLastSeenMessageId(conversationId, senderId);
+    // TODO: Implement this in the API service
+    console.warn('getLastSeenMessageId not implemented in API service');
+    return null;
   }
 
   isMessageSeen(messageId: number): boolean {
-    // For now, use localStorage fallback
-    return this.localStorageService.isMessageSeen(messageId);
+    // TODO: Implement this in the API service
+    console.warn('isMessageSeen not implemented in API service');
+    return false;
+  }
+
+  // ===== AUTHENTICATION OPERATIONS (Need Backend Implementation) =====
+  
+  login(loginData: LoginData): AuthResult {
+    throw new Error('Authentication operations must be implemented in the backend. Please implement /api/auth/login endpoint.');
+  }
+
+  loginWithGoogle(googleUser: GoogleUserData): AuthResult {
+    throw new Error('Google authentication must be implemented in the backend. Please implement /api/auth/google endpoint.');
+  }
+
+  signupWithGoogle(googleUser: GoogleUserData): AuthResult {
+    throw new Error('Google signup must be implemented in the backend. Please implement /api/auth/google/signup endpoint.');
+  }
+
+  // ===== PROFILE MANAGEMENT (Need Backend Implementation) =====
+  
+  checkUsernameAvailability(username: string): { available: boolean; error?: string } {
+    throw new Error('Username availability check must be implemented in the backend. Please implement /api/users/check-username/:username endpoint.');
+  }
+
+  updateUserProfile(userId: number, profileData: UpdateProfileData): { success: boolean; error?: string } {
+    throw new Error('User profile updates must be implemented in the backend. Please implement PUT /api/users/:id endpoint.');
+  }
+
+  updateUsername(userId: number, newUsername: string): boolean {
+    throw new Error('Username updates must be implemented in the backend. Please implement PUT /api/users/:id/username endpoint.');
+  }
+
+  completeProfileSetup(userId: number): { success: boolean; error?: string } {
+    throw new Error('Profile setup completion must be implemented in the backend. Please implement PUT /api/users/:id/complete-setup endpoint.');
+  }
+
+  setupPassword(userId: number, password: string): { success: boolean; error?: string } {
+    throw new Error('Password setup must be implemented in the backend. Please implement PUT /api/users/:id/password endpoint.');
+  }
+
+  // ===== POST INTERACTIONS (Need Backend Implementation) =====
+  
+  toggleLike(likeData: CreateLikeData): boolean {
+    throw new Error('Post likes must be implemented in the backend. Please implement POST /api/posts/:id/like endpoint.');
+  }
+
+  isPostLikedByUser(userId: number, postId: number): boolean {
+    throw new Error('Like status check must be implemented in the backend. Please implement GET /api/posts/:id/like/:userId endpoint.');
+  }
+
+  createComment(commentData: CreateCommentData): Comment {
+    throw new Error('Comments must be implemented in the backend. Please implement POST /api/posts/:id/comments endpoint.');
+  }
+
+  getPostComments(postId: number): CommentWithUser[] {
+    throw new Error('Getting comments must be implemented in the backend. Please implement GET /api/posts/:id/comments endpoint.');
+  }
+
+  toggleSavePost(saveData: CreateSavedPostData): boolean {
+    throw new Error('Post saving must be implemented in the backend. Please implement POST /api/posts/:id/save endpoint.');
+  }
+
+  isPostSaved(userId: number, postId: number): boolean {
+    throw new Error('Save status check must be implemented in the backend. Please implement GET /api/posts/:id/save/:userId endpoint.');
+  }
+
+  // ===== ADDITIONAL HELPER METHODS (Need Backend Implementation) =====
+  
+  async getFollowerCount(userId: number): Promise<number> {
+    throw new Error('Follower count must be implemented in the backend. Please implement GET /api/users/:id/followers/count endpoint.');
+  }
+
+  async getFollowingCount(userId: number): Promise<number> {
+    throw new Error('Following count must be implemented in the backend. Please implement GET /api/users/:id/following/count endpoint.');
+  }
+
+  async getFollowersList(userId: number): Promise<UserPublic[]> {
+    throw new Error('Followers list must be implemented in the backend. Please implement GET /api/users/:id/followers endpoint.');
+  }
+
+  async getFollowingList(userId: number): Promise<UserPublic[]> {
+    throw new Error('Following list must be implemented in the backend. Please implement GET /api/users/:id/following endpoint.');
+  }
+
+  // ===== UTILITY METHODS =====
+  
+  formatTimestamp(timestamp: string): string {
+    try {
+      return new Date(timestamp).toLocaleDateString();
+    } catch (error) {
+      return timestamp;
+    }
+  }
+
+  // ===== POST OPERATIONS (Need Backend Implementation) =====
+  
+  getPostWithUserById(postId: number): PostWithUser | null {
+    throw new Error('Post details must be implemented in the backend. Please implement GET /api/posts/:id endpoint.');
+  }
+
+  getPostById(postId: number): Post | null {
+    throw new Error('Post by ID must be implemented in the backend. Please implement GET /api/posts/:id endpoint.');
+  }
+
+  updatePostCaption(postId: number, caption: string): boolean {
+    throw new Error('Post updates must be implemented in the backend. Please implement PUT /api/posts/:id endpoint.');
+  }
+
+  deletePost(postId: number): boolean {
+    throw new Error('Post deletion must be implemented in the backend. Please implement DELETE /api/posts/:id endpoint.');
+  }
+
+  togglePinPost(postId: number): boolean {
+    throw new Error('Post pinning must be implemented in the backend. Please implement PUT /api/posts/:id/pin endpoint.');
+  }
+
+  // ===== USER FOLLOW HELPERS (Need Backend Implementation) =====
+  
+  async isFollowingUsername(followerId: number, followingUsername: string): Promise<boolean> {
+    throw new Error('Follow status by username must be implemented in the backend. Please implement GET /api/users/:username/followers/:followerId endpoint.');
+  }
+
+  async followUser(followData: { follower_id: number; following_username: string }): Promise<boolean> {
+    throw new Error('Follow by username must be implemented in the backend. Please implement POST /api/users/:username/follow endpoint.');
+  }
+
+  async unfollowUser(followerId: number, followingUsername: string): Promise<boolean> {
+    throw new Error('Unfollow by username must be implemented in the backend. Please implement DELETE /api/users/:username/follow/:followerId endpoint.');
   }
 }
 

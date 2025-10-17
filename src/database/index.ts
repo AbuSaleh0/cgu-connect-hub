@@ -1,5 +1,4 @@
-export { dbService } from './service';
-export { hybridDbService } from './hybrid-service';
+export { hybridDbService as dbService } from './hybrid-service';
 export { apiService } from './api-service';
 export { seedDatabase, clearAndReseedDatabase } from './seeder';
 export { sessionManager } from './session';

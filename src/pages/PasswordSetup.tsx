@@ -38,7 +38,7 @@ const PasswordSetup = () => {
       const result = dbService.setupPassword(currentUser.id, password);
       
       if (result.success) {
-        const updatedUser = dbService.getUserById(currentUser.id);
+        const updatedUser = await dbService.getUserById(currentUser.id);
         if (updatedUser) {
           sessionManager.login(updatedUser);
         }

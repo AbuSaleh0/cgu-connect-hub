@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { dbService, hybridDbService, sessionManager, messageEventSystem, useRealtimeMessages } from "@/database";
+import { dbService, sessionManager, messageEventSystem, useRealtimeMessages } from "@/database";
 import { ConversationWithUsers, MessageWithSender, User } from "@/database/types";
 
 interface MessageInputProps {
@@ -31,7 +31,7 @@ const MessageInput = ({ conversationId, onMessageSent }: MessageInputProps) => {
         content: message.trim()
       });
       
-      const newMessage = await hybridDbService.createMessage({
+      const newMessage = await dbService.createMessage({
         conversation_id: conversationId,
         sender_id: currentUser.id,
         content: message.trim(),
@@ -163,7 +163,7 @@ const ChatWindow = ({ conversation, currentUserId, onBack, onMessagesRead }: Cha
   const loadMessages = async () => {
     try {
       console.log('ChatWindow: Loading messages for conversation:', conversation.id);
-      const conversationMessages = await hybridDbService.getConversationMessages(conversation.id);
+      const conversationMessages = await dbService.getConversationMessages(conversation.id);
       console.log('ChatWindow: Loaded messages:', conversationMessages.length, conversationMessages);
       setMessages(conversationMessages);
       
@@ -173,12 +173,12 @@ const ChatWindow = ({ conversation, currentUserId, onBack, onMessagesRead }: Cha
         : conversation.participant1_id;
       
       // Get the last seen message ID for messages sent by current user
-      const lastSeen = hybridDbService.getLastSeenMessageId(conversation.id, currentUserId);
+      const lastSeen = dbService.getLastSeenMessageId(conversation.id, currentUserId);
       setLastSeenMessageId(lastSeen);
       
       // Mark messages as read (messages sent by the other participant that we're now reading)
       console.log('Marking messages as read for conversation:', conversation.id, 'user:', currentUserId);
-      const markedAsRead = await hybridDbService.markMessagesAsRead(conversation.id, currentUserId);
+      const markedAsRead = await dbService.markMessagesAsRead(conversation.id, currentUserId);
       console.log('Messages marked as read result:', markedAsRead);
       
       if (markedAsRead) {
@@ -406,29 +406,33 @@ const NewChatModal = ({ isOpen, onClose, onUserSelect }: NewChatModalProps) => {
   const currentUser = sessionManager.getCurrentUser();
 
   useEffect(() => {
-    if (isOpen && searchTerm.trim()) {
-      setLoading(true);
-      try {
-        // Get all users and filter by search term
-        const allUsers = dbService.getAllUsers();
-        console.log('All users in database:', allUsers);
-        console.log('Current user:', currentUser);
-        
-        const filteredUsers = allUsers.filter(user => 
-          user.id !== currentUser?.id &&
-          (user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           user.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
-        console.log('Filtered users for search:', filteredUsers);
-        setUsers(filteredUsers);
-      } catch (error) {
-        console.error('Error searching users:', error);
-      } finally {
-        setLoading(false);
+    const searchUsers = async () => {
+      if (isOpen && searchTerm.trim()) {
+        setLoading(true);
+        try {
+          // Get all users and filter by search term
+          const allUsers = await dbService.getAllUsers();
+          console.log('All users in database:', allUsers);
+          console.log('Current user:', currentUser);
+          
+          const filteredUsers = allUsers.filter(user => 
+            user.id !== currentUser?.id &&
+            (user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             user.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
+          );
+          console.log('Filtered users for search:', filteredUsers);
+          setUsers(filteredUsers);
+        } catch (error) {
+          console.error('Error searching users:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setUsers([]);
       }
-    } else {
-      setUsers([]);
-    }
+    };
+    
+    searchUsers();
   }, [searchTerm, isOpen, currentUser?.id]);
 
   if (!isOpen) return null;
@@ -516,8 +520,8 @@ const Messages = () => {
     try {
       console.log('Loading conversations for user:', currentUser.id, currentUser.username);
       const userConversations = searchTerm 
-        ? await hybridDbService.searchConversations(currentUser.id, searchTerm)
-        : await hybridDbService.getUserConversations(currentUser.id);
+        ? await dbService.searchConversations(currentUser.id, searchTerm)
+        : await dbService.getUserConversations(currentUser.id);
       
       console.log('User conversations loaded:', userConversations.length);
       userConversations.forEach(conv => {
@@ -526,7 +530,7 @@ const Messages = () => {
       
       // Debug: Check messages in each conversation
       for (const conv of userConversations) {
-        const messages = await hybridDbService.getConversationMessages(conv.id);
+        const messages = await dbService.getConversationMessages(conv.id);
         const unreadMessages = messages.filter(m => m.sender_id !== currentUser.id && !m.is_read);
         console.log(`Conversation ${conv.id} has ${messages.length} total messages, ${unreadMessages.length} unread messages from others`);
         unreadMessages.forEach(msg => {
@@ -596,10 +600,10 @@ const Messages = () => {
 
     try {
       // Try to find existing conversation or create new one
-      let conversation = await hybridDbService.getConversationBetweenUsers(currentUser.id, user.id);
+      let conversation = await dbService.getConversationBetweenUsers(currentUser.id, user.id);
       
       if (!conversation) {
-        conversation = await hybridDbService.createConversation({
+        conversation = await dbService.createConversation({
           participant1_id: currentUser.id,
           participant2_id: user.id
         });
@@ -610,7 +614,7 @@ const Messages = () => {
         await loadConversations();
         
         // Select the conversation
-        const conversationWithUsers = (await hybridDbService.getUserConversations(currentUser.id))
+        const conversationWithUsers = (await dbService.getUserConversations(currentUser.id))
           .find(c => c.id === conversation!.id);
         
         if (conversationWithUsers) {

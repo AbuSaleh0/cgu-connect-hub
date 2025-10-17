@@ -65,7 +65,7 @@ const Index = () => {
   const loadPosts = (() => {
     let isLoading = false;
     
-    return () => {
+    return async () => {
       if (isLoading) {
         console.log('Posts already loading, skipping...');
         return;
@@ -74,7 +74,7 @@ const Index = () => {
       try {
         isLoading = true;
         console.log('Loading posts from database...');
-        const dbPosts = dbService.getAllPosts();
+        const dbPosts = await dbService.getAllPosts();
         console.log('Posts from database:', dbPosts.length);
         console.log('Post IDs:', dbPosts.map(p => p.id));
         

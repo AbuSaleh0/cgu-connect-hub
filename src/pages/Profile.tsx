@@ -23,6 +23,7 @@ const Profile = () => {
   const [posts, setPosts] = useState<PostWithUser[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -48,10 +49,11 @@ const Profile = () => {
     isOwnProfile 
   });
 
-  const loadUserData = () => {
+  const loadUserData = async () => {
     if (username) {
+      setLoading(true);
       try {
-        const foundUser = dbService.getUserByUsername(username);
+        const foundUser = await dbService.getUserByUsername(username);
         if (foundUser) {
           const { password, ...publicUser } = foundUser;
           setUser(publicUser);
@@ -59,7 +61,7 @@ const Profile = () => {
           // Clear posts first to avoid showing stale data
           setPosts([]);
           
-          const userPosts = dbService.getPostsByUser(foundUser.id);
+          const userPosts = await dbService.getPostsByUser(foundUser.id);
           
           // Double-check: filter posts to ensure only this user's posts
           const filteredPosts = userPosts.filter(post => post.user_id === foundUser.id);
@@ -76,16 +78,16 @@ const Profile = () => {
           
           // Check if current user is following this user
           if (currentUser && !isOwnProfile) {
-            setIsFollowing(dbService.isFollowing(currentUser.id, foundUser.id));
+            setIsFollowing(await dbService.isFollowing(currentUser.id, foundUser.id));
           }
           
           // Load follower and following counts
-          setFollowerCount(dbService.getFollowerCount(foundUser.id));
-          setFollowingCount(dbService.getFollowingCount(foundUser.id));
+          setFollowerCount(await dbService.getFollowerCount(foundUser.id));
+          setFollowingCount(await dbService.getFollowingCount(foundUser.id));
           
           // Load followers and following lists
-          setFollowersList(dbService.getFollowersList(foundUser.id));
-          setFollowingList(dbService.getFollowingList(foundUser.id));
+          setFollowersList(await dbService.getFollowersList(foundUser.id));
+          setFollowingList(await dbService.getFollowingList(foundUser.id));
         }
       } catch (error) {
         console.error('Error loading user data:', error);
@@ -94,11 +96,12 @@ const Profile = () => {
     }
   };
 
-  const handleFollowToggle = () => {
-    if (!currentUser || !user) return;
+  const handleFollowToggle = async () => {
+    if (!currentUser || !user || followLoading) return;
     
+    setFollowLoading(true);
     try {
-      const newFollowState = dbService.toggleFollow({
+      const newFollowState = await dbService.toggleFollow({
         follower_id: currentUser.id,
         following_id: user.id
       });
@@ -107,12 +110,14 @@ const Profile = () => {
       
       // Update follower count and list
       if (user) {
-        setFollowerCount(dbService.getFollowerCount(user.id));
-        setFollowersList(dbService.getFollowersList(user.id));
+        setFollowerCount(await dbService.getFollowerCount(user.id));
+        setFollowersList(await dbService.getFollowersList(user.id));
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
       alert('Follow feature temporarily unavailable');
+    } finally {
+      setFollowLoading(false);
     }
   };
 
@@ -122,11 +127,15 @@ const Profile = () => {
 
   // Refresh posts when returning to profile
   useEffect(() => {
-    const handleFocus = () => {
+    const handleFocus = async () => {
       if (user) {
-        const userPosts = dbService.getPostsByUser(user.id);
-        const filteredPosts = userPosts.filter(post => post.user_id === user.id);
-        setPosts(filteredPosts);
+        try {
+          const userPosts = await dbService.getPostsByUser(user.id);
+          const filteredPosts = userPosts.filter(post => post.user_id === user.id);
+          setPosts(filteredPosts);
+        } catch (error) {
+          console.error('Error refreshing posts:', error);
+        }
       }
     };
 
@@ -148,24 +157,28 @@ const Profile = () => {
     }
   }, [showMenu]);
 
-  const handleProfileUpdate = () => {
+  const handleProfileUpdate = async () => {
     if (username) {
-      const updatedUser = dbService.getUserByUsername(username);
-      if (updatedUser) {
-        const { password, ...publicUser } = updatedUser;
-        setUser(publicUser);
-        if (isOwnProfile) {
-          sessionManager.login(updatedUser);
+      try {
+        const updatedUser = await dbService.getUserByUsername(username);
+        if (updatedUser) {
+          const { password, ...publicUser } = updatedUser;
+          setUser(publicUser);
+          if (isOwnProfile) {
+            sessionManager.login(updatedUser);
+          }
+          // Refresh posts after profile update
+          const userPosts = await dbService.getPostsByUser(updatedUser.id);
+          const filteredPosts = userPosts.filter(post => post.user_id === updatedUser.id);
+          setPosts(filteredPosts);
         }
-        // Refresh posts after profile update
-        const userPosts = dbService.getPostsByUser(updatedUser.id);
-        const filteredPosts = userPosts.filter(post => post.user_id === updatedUser.id);
-        setPosts(filteredPosts);
+      } catch (error) {
+        console.error('Error updating profile:', error);
       }
     }
   };
 
-  const handleUsernameUpdate = (newUsername: string) => {
+  const handleUsernameUpdate = async (newUsername: string) => {
     // Update the URL to reflect the new username
     navigate(`/${newUsername}`, { replace: true });
     
@@ -175,10 +188,14 @@ const Profile = () => {
       sessionManager.login(updatedUser); // Update session with new username
       
       // Refresh user data
-      const refreshedUser = dbService.getUserByUsername(newUsername);
-      if (refreshedUser) {
-        const { password, ...publicUser } = refreshedUser;
-        setUser(publicUser);
+      try {
+        const refreshedUser = await dbService.getUserByUsername(newUsername);
+        if (refreshedUser) {
+          const { password, ...publicUser } = refreshedUser;
+          setUser(publicUser);
+        }
+      } catch (error) {
+        console.error('Error refreshing user data:', error);
       }
     }
   };
@@ -190,15 +207,19 @@ const Profile = () => {
     console.log('Modal state updated - showPostDetail: true, selectedPost set');
   };
 
-  const handleClosePostDetail = () => {
+  const handleClosePostDetail = async () => {
     setShowPostDetail(false);
     setSelectedPost(null);
     
     // Refresh posts data to get updated like/comment counts
     if (user) {
-      const userPosts = dbService.getPostsByUser(user.id);
-      const filteredPosts = userPosts.filter(post => post.user_id === user.id);
-      setPosts(filteredPosts);
+      try {
+        const userPosts = await dbService.getPostsByUser(user.id);
+        const filteredPosts = userPosts.filter(post => post.user_id === user.id);
+        setPosts(filteredPosts);
+      } catch (error) {
+        console.error('Error refreshing posts:', error);
+      }
     }
   };
 
@@ -207,10 +228,10 @@ const Profile = () => {
     
     try {
       // Try to find existing conversation or create new one
-      let conversation = dbService.getConversationBetweenUsers(currentUser.id, user.id);
+      let conversation = await dbService.getConversationBetweenUsers(currentUser.id, user.id);
       
       if (!conversation) {
-        conversation = dbService.createConversation({
+        conversation = await dbService.createConversation({
           participant1_id: currentUser.id,
           participant2_id: user.id
         });
@@ -386,9 +407,10 @@ const Profile = () => {
                         variant={isFollowing ? "outline" : "default"}
                         size="sm"
                         onClick={handleFollowToggle}
+                        disabled={followLoading}
                       >
                         <UserPlus className="h-4 w-4 mr-2" />
-                        {isFollowing ? 'Unfollow' : 'Follow'}
+                        {followLoading ? 'Loading...' : (isFollowing ? 'Unfollow' : 'Follow')}
                       </Button>
                       <Button
                         variant="outline"
@@ -451,9 +473,10 @@ const Profile = () => {
                   size="sm"
                   className="flex-1"
                   onClick={handleFollowToggle}
+                  disabled={followLoading}
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
-                  {isFollowing ? 'Unfollow' : 'Follow'}
+                  {followLoading ? 'Loading...' : (isFollowing ? 'Unfollow' : 'Follow')}
                 </Button>
                 <Button
                   variant="outline"
