@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug localStorage</title>
+</head>
+<body>
+    <h1>LocalStorage Debug Tool</h1>
+    <button onclick="debugLocalStorage()">Check localStorage</button>
+    <button onclick="createTestData()">Create Test Data</button>
+    <button onclick="clearData()">Clear All Data</button>
+    <pre id="output"></pre>
+
+    <script>
+        function debugLocalStorage() {
+            const output = document.getElementById('output');
+            let debug = '=== DEBUGGING LOCALSTORAGE ===\n\n';
+
+            // Check users
+            const users = localStorage.getItem('cgu_connect_users');
+            if (users) {
+                const parsedUsers = JSON.parse(users);
+                debug += `Users found: ${parsedUsers.length}\n`;
+                parsedUsers.forEach(user => {
+                    debug += `  - User ${user.id}: ${user.username} (${user.email})\n`;
+                });
+            } else {
+                debug += 'No users found\n';
+            }
+            debug += '\n';
+
+            // Check conversations
+            const conversations = localStorage.getItem('cgu_connect_conversations');
+            if (conversations) {
+                const parsedConversations = JSON.parse(conversations);
+                debug += `Conversations found: ${parsedConversations.length}\n`;
+                parsedConversations.forEach(conv => {
+                    debug += `  - Conversation ${conv.id}: participant1=${conv.participant1_id}, participant2=${conv.participant2_id}\n`;
+                });
+            } else {
+                debug += 'No conversations found\n';
+            }
+            debug += '\n';
+
+            // Check messages
+            const messages = localStorage.getItem('cgu_connect_messages');
+            if (messages) {
+                const parsedMessages = JSON.parse(messages);
+                debug += `Messages found: ${parsedMessages.length}\n`;
+                parsedMessages.forEach(msg => {
+                    debug += `  - Message ${msg.id}: conversation=${msg.conversation_id}, sender=${msg.sender_id}, content="${msg.content}"\n`;
+                });
+            } else {
+                debug += 'No messages found\n';
+            }
+            debug += '\n';
+
+            // Check current session
+            const session = localStorage.getItem('cgu_connect_session');
+            if (session) {
+                const parsedSession = JSON.parse(session);
+                debug += `Current session: User ID ${parsedSession.user?.id}, Username: ${parsedSession.user?.username}\n`;
+            } else {
+                debug += 'No session found\n';
+            }
+
+            debug += '\n=== END DEBUG ===';
+            output.textContent = debug;
+        }
+
+        function createTestData() {
+            // Create test users
+            const users = [
+                {
+                    id: 1,
+                    username: 'testuser1',
+                    email: 'test1@example.com',
+                    displayName: 'Test User 1',
+                    avatar: null,
+                    created_at: new Date().toISOString()
+                },
+                {
+                    id: 2,
+                    username: 'testuser2', 
+                    email: 'test2@example.com',
+                    displayName: 'Test User 2',
+                    avatar: null,
+                    created_at: new Date().toISOString()
+                }
+            ];
+
+            // Create test conversation
+            const conversations = [
+                {
+                    id: 1,
+                    participant1_id: 1,
+                    participant2_id: 2,
+                    participant1_username: 'testuser1',
+                    participant2_username: 'testuser2',
+                    participant1_avatar: null,
+                    participant2_avatar: null,
+                    last_message_id: 2,
+                    last_message_at: new Date().toISOString(),
+                    unread_count: 1,
+                    created_at: new Date().toISOString()
+                }
+            ];
+
+            // Create test messages
+            const messages = [
+                {
+                    id: 1,
+                    conversation_id: 1,
+                    sender_id: 1,
+                    sender_username: 'testuser1',
+                    sender_avatar: null,
+                    content: 'Hello there!',
+                    message_type: 'text',
+                    is_read: true,
+                    created_at: new Date(Date.now() - 60000).toISOString()
+                },
+                {
+                    id: 2,
+                    conversation_id: 1,
+                    sender_id: 2,
+                    sender_username: 'testuser2',
+                    sender_avatar: null,
+                    content: 'Hi! How are you?',
+                    message_type: 'text',
+                    is_read: false,
+                    created_at: new Date().toISOString()
+                }
+            ];
+
+            // Set test session (logged in as user 1)
+            const session = {
+                user: users[0],
+                isAuthenticated: true,
+                loginTime: new Date().toISOString()
+            };
+
+            localStorage.setItem('cgu_connect_users', JSON.stringify(users));
+            localStorage.setItem('cgu_connect_conversations', JSON.stringify(conversations));
+            localStorage.setItem('cgu_connect_messages', JSON.stringify(messages));
+            localStorage.setItem('cgu_connect_session', JSON.stringify(session));
+
+            document.getElementById('output').textContent = 'Test data created successfully!';
+        }
+
+        function clearData() {
+            localStorage.removeItem('cgu_connect_users');
+            localStorage.removeItem('cgu_connect_conversations');
+            localStorage.removeItem('cgu_connect_messages');
+            localStorage.removeItem('cgu_connect_session');
+            document.getElementById('output').textContent = 'All data cleared!';
+        }
+    </script>
+</body>
+</html>

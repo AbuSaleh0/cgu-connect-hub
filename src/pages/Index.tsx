@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
+import MobileBottomNav from "@/components/MobileBottomNav";
 import PostCard from "@/components/PostCard";
 import LoginOverlay from "@/components/LoginOverlay";
 import AuthPage from "@/components/AuthPage";
 import { Button } from "@/components/ui/button";
-import { dbService, seedDatabase, sessionManager } from "@/database";
+import { dbService, seedDatabase, clearAndReseedDatabase, sessionManager } from "@/database";
 import { convertDbPostToCardData, PostCardData } from "@/database/utils";
 
 const Index = () => {
@@ -61,45 +62,133 @@ const Index = () => {
     }
   }, [authView]);
 
+  const loadPosts = (() => {
+    let isLoading = false;
+    
+    return () => {
+      if (isLoading) {
+        console.log('Posts already loading, skipping...');
+        return;
+      }
+      
+      try {
+        isLoading = true;
+        console.log('Loading posts from database...');
+        const dbPosts = dbService.getAllPosts();
+        console.log('Posts from database:', dbPosts.length);
+        console.log('Post IDs:', dbPosts.map(p => p.id));
+        
+        // Remove duplicates by ID using Map
+        const uniquePostsMap = new Map();
+        dbPosts.forEach(post => {
+          if (!uniquePostsMap.has(post.id)) {
+            uniquePostsMap.set(post.id, post);
+          }
+        });
+        
+        const uniquePosts = Array.from(uniquePostsMap.values());
+        console.log('Unique posts after deduplication:', uniquePosts.length);
+        
+        const formattedPosts = uniquePosts.map(post => 
+          convertDbPostToCardData(post, dbService.formatTimestamp)
+        );
+        
+        setPosts(formattedPosts);
+        console.log('Posts set in state:', formattedPosts.length);
+      } catch (error) {
+        console.error('Error loading posts:', error);
+        setPosts([]);
+      } finally {
+        isLoading = false;
+      }
+    };
+  })();
+
   useEffect(() => {
     const initializeData = async () => {
+      console.log('Starting initialization...');
       try {
+        // Check for post creation success
+        if (sessionStorage.getItem('postCreated')) {
+          alert('Post created successfully!');
+          sessionStorage.removeItem('postCreated');
+        }
+        
+        console.log('Checking authentication...');
         // Check authentication status
         const loggedIn = sessionManager.isLoggedIn();
         setIsAuthenticated(loggedIn);
         const currentUser = sessionManager.getCurrentUser();
         setUser(currentUser);
         
-        // Redirect to profile setup if user hasn't completed it
-        if (loggedIn && currentUser && !currentUser.profileSetupComplete) {
+        // Only redirect to profile setup if it's a new signup and profile is incomplete
+        const isNewSignup = sessionStorage.getItem('newSignup') === 'true';
+        if (loggedIn && currentUser && !currentUser.profileSetupComplete && isNewSignup) {
           navigate('/profile-setup');
           return;
         }
+        
+        // Clear the new signup flag if user is authenticated
+        if (loggedIn) {
+          sessionStorage.removeItem('newSignup');
+        }
 
-        // Seed database if it's empty
+        console.log('Checking database state...');
+        
+        // Seed database if empty
         seedDatabase();
         
-        // Fetch posts from database
-        const dbPosts = dbService.getAllPosts();
-        const formattedPosts = dbPosts.map(post => 
-          convertDbPostToCardData(post, dbService.formatTimestamp)
-        );
-        
-        setPosts(formattedPosts);
+        console.log('Loading posts...');
+        // Load posts
+        loadPosts();
+        console.log('Initialization complete');
       } catch (error) {
         console.error('Error initializing data:', error);
-        // Fall back to empty array on error
         setPosts([]);
       } finally {
         setLoading(false);
       }
     };
 
-    initializeData();
+    // Add a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.error('Initialization timeout - forcing loading to false');
+      setLoading(false);
+    }, 10000); // 10 second timeout
+
+    initializeData().finally(() => {
+      clearTimeout(timeoutId);
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, []);
 
+  // Refresh posts when component becomes visible (with debounce)
+  useEffect(() => {
+    let lastFocusTime = 0;
+    const FOCUS_DEBOUNCE = 2000; // 2 seconds
+    
+    const handleFocus = () => {
+      const now = Date.now();
+      if (isAuthenticated && (now - lastFocusTime) > FOCUS_DEBOUNCE) {
+        console.log('Window focused - refreshing posts');
+        lastFocusTime = now;
+        loadPosts();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isAuthenticated]);
+
   const handleInteractionClick = () => {
-    setShowLoginOverlay(true);
+    // Only show login overlay for non-authenticated users
+    if (!isAuthenticated) {
+      setShowLoginOverlay(true);
+    }
+    // If user is authenticated, do nothing (let the actual interaction happen)
   };
 
   const handleLoginClick = () => {
@@ -117,10 +206,16 @@ const Index = () => {
   };
 
   const handleNavClick = (section: string) => {
-    // For now, just log the action - in a real app, these would navigate to different pages
-    console.log(`${section} navigation clicked`);
-    // You could show a temporary message or implement actual navigation
-    alert(`${section} feature coming soon!`);
+    if (section === 'Search') {
+      navigate('/search');
+    } else if (section === 'Notifications') {
+      navigate('/notifications');
+    } else if (section === 'Messages') {
+      navigate('/messages');
+    } else {
+      console.log(`${section} navigation clicked`);
+      alert(`${section} feature coming soon!`);
+    }
   };
 
   const handleAuthSuccess = () => {
@@ -143,6 +238,14 @@ const Index = () => {
     setIsAuthenticated(false);
     setUser(null);
     setAuthView("feed");
+  };
+
+  const handleCreateClick = () => {
+    if (!isAuthenticated) {
+      setShowLoginOverlay(true);
+    } else {
+      navigate('/create');
+    }
   };
 
   if (authView === "login") {
@@ -173,18 +276,23 @@ const Index = () => {
         <Header 
           onLoginClick={handleLoginClick} 
           onSignUpClick={handleSignUpClick}
-          onHomeClick={() => handleNavClick('Home')}
-          onExploreClick={() => handleNavClick('Explore')}
+          onExploreClick={() => handleNavClick('Search')}
           onMessagesClick={() => handleNavClick('Messages')}
           onNotificationsClick={() => handleNavClick('Notifications')}
-          onCreateClick={() => handleNavClick('Create')}
+          onCreateClick={handleCreateClick}
           isAuthenticated={isAuthenticated}
           currentUser={user}
           onLogout={handleLogout}
         />
         <main className="container max-w-2xl mx-auto py-8 px-4">
           <div className="space-y-6">
-            <div className="text-center">Loading posts...</div>
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <div>Loading CGU Connect...</div>
+              <div className="text-sm text-muted-foreground mt-2">
+                Initializing database and loading posts
+              </div>
+            </div>
           </div>
         </main>
       </div>
@@ -196,15 +304,16 @@ const Index = () => {
       <Header 
         onLoginClick={handleLoginClick} 
         onSignUpClick={handleSignUpClick}
-        onHomeClick={() => handleNavClick('Home')}
-        onExploreClick={() => handleNavClick('Explore')}
+        onExploreClick={() => handleNavClick('Search')}
         onMessagesClick={() => handleNavClick('Messages')}
         onNotificationsClick={() => handleNavClick('Notifications')}
-        onCreateClick={() => handleNavClick('Create')}
+        onCreateClick={handleCreateClick}
         isAuthenticated={isAuthenticated}
-          currentUser={user}
-          onLogout={handleLogout}
-        />      <main className="container max-w-2xl mx-auto py-8 px-4">
+        currentUser={user}
+        onLogout={handleLogout}
+      />
+      
+      <main className="container max-w-2xl mx-auto py-8 px-4 pb-20 md:pb-8">
         <div className="space-y-6">
           {posts.length > 0 ? (
             posts.map((post) => (
@@ -212,13 +321,38 @@ const Index = () => {
                 key={post.id}
                 post={post}
                 onInteractionClick={handleInteractionClick}
+                isAuthenticated={isAuthenticated}
+                currentUser={user}
               />
             ))
           ) : (
-            <div className="text-center">No posts available</div>
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">📱</div>
+              <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Be the first to share something with the CGU Connect community!
+              </p>
+              {isAuthenticated && (
+                <button
+                  onClick={handleCreateClick}
+                  className="bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Create your first post
+                </button>
+              )}
+            </div>
           )}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        onExploreClick={() => handleNavClick('Search')}
+        onNotificationsClick={() => handleNavClick('Notifications')}
+        onCreateClick={handleCreateClick}
+        isAuthenticated={isAuthenticated}
+        currentUser={user}
+      />
 
       {showLoginOverlay && (
         <LoginOverlay

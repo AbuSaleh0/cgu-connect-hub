@@ -18,6 +18,26 @@
   </head>
 
   <body>
+    <!-- Hidden Netlify form for feedback -->
+    <form name="cgu-connect-feedback" netlify netlify-honeypot="bot-field" hidden>
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <select name="category">
+        <option value="bug">Bug Report</option>
+        <option value="feature">Feature Request</option>
+        <option value="improvement">Improvement Suggestion</option>
+        <option value="ui-ux">UI/UX Feedback</option>
+        <option value="performance">Performance Issue</option>
+        <option value="general">General Feedback</option>
+        <option value="other">Other</option>
+      </select>
+      <input type="text" name="subject" />
+      <textarea name="message"></textarea>
+      <input type="text" name="user-id" />
+      <input type="text" name="username" />
+      <input type="text" name="timestamp" />
+    </form>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -45,8 +45,11 @@ const PasswordSetup = () => {
         
         // Check if profile setup is needed
         if (!updatedUser?.profileSetupComplete) {
+          // Keep the new signup flag since user is still in signup flow
           navigate("/profile-setup");
         } else {
+          // User has completed setup, clear the flag
+          sessionStorage.removeItem('newSignup');
           navigate("/");
         }
       } else {
@@ -60,13 +63,7 @@ const PasswordSetup = () => {
     }
   };
 
-  const handleSkip = () => {
-    if (!currentUser?.profileSetupComplete) {
-      navigate("/profile-setup");
-    } else {
-      navigate("/");
-    }
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-background">
@@ -128,23 +125,13 @@ const PasswordSetup = () => {
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={handleSkip}
-              className="flex-1"
-              disabled={loading}
-            >
-              Skip for now
-            </Button>
-            <Button
-              onClick={handleSetupPassword}
-              className="flex-1"
-              disabled={loading || !password || !confirmPassword}
-            >
-              {loading ? "Setting up..." : "Setup Password"}
-            </Button>
-          </div>
+          <Button
+            onClick={handleSetupPassword}
+            className="w-full"
+            disabled={loading || !password || !confirmPassword}
+          >
+            {loading ? "Setting up..." : "Setup Password"}
+          </Button>
         </div>
       </div>
     </div>

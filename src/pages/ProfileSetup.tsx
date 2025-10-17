@@ -1,34 +1,94 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Camera, AlertCircle, Check, X } from "lucide-react";
 import { dbService, sessionManager } from "@/database";
 import { useNavigate } from "react-router-dom";
+import ImageCropModal from "@/components/ImageCropModal";
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
   const currentUser = sessionManager.getCurrentUser();
   
+  const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState(currentUser?.displayName || "");
   const [bio, setBio] = useState(currentUser?.bio || "");
-  const [avatar, setAvatar] = useState(currentUser?.avatar || "");
+  const [avatar, setAvatar] = useState("");
   const [semester, setSemester] = useState(currentUser?.semester || "");
   const [department, setDepartment] = useState(currentUser?.department || "");
   const [loading, setLoading] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState("");
+
+  const validateUsername = (value: string) => {
+    if (!value) {
+      setUsernameError("");
+      setUsernameAvailable(null);
+      return;
+    }
+
+    const usernamePattern = /^[a-z0-9._]+$/;
+    
+    if (value.length < 3) {
+      setUsernameError("Username must be at least 3 characters long");
+      setUsernameAvailable(false);
+    } else if (value.length > 20) {
+      setUsernameError("Username must be no more than 20 characters long");
+      setUsernameAvailable(false);
+    } else if (!usernamePattern.test(value)) {
+      setUsernameError("Only lowercase letters, numbers, dots, and underscores allowed");
+      setUsernameAvailable(false);
+    } else {
+      setUsernameError("");
+      checkUsernameAvailability(value);
+    }
+  };
+
+  const checkUsernameAvailability = async (username: string) => {
+    setCheckingUsername(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const result = dbService.checkUsernameAvailability(username);
+      setUsernameAvailable(result.available);
+      if (!result.available && result.error) {
+        setUsernameError(result.error);
+      }
+    } catch (error) {
+      console.error('Username check error:', error);
+      setUsernameAvailable(null);
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toLowerCase();
+    setUsername(value);
+    validateUsername(value);
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setAvatar(e.target?.result as string);
+        setTempImageSrc(e.target?.result as string);
+        setShowCropModal(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleCropComplete = (croppedImage: string) => {
+    setAvatar(croppedImage);
   };
 
   const handleComplete = async () => {
@@ -41,7 +101,8 @@ const ProfileSetup = () => {
     try {
       console.log("Updating profile for user:", currentUser.id);
       const updateResult = dbService.updateUserProfile(currentUser.id, {
-        displayName: displayName || currentUser.username,
+        username,
+        displayName: displayName || username,
         bio,
         avatar,
         semester,
@@ -59,8 +120,19 @@ const ProfileSetup = () => {
           console.log("Updated user:", updatedUser);
           
           if (updatedUser) {
+            // Update session with completed profile
             sessionManager.login(updatedUser);
-            navigate("/");
+            
+            // Clear the new signup flag since profile setup is now complete
+            sessionStorage.removeItem('newSignup');
+            
+            // Clear any auth view state that might redirect back to signup
+            localStorage.setItem('cgu_auth_view', 'feed');
+            localStorage.removeItem('authState');
+            localStorage.removeItem('authMode');
+            
+            // Force navigation to feed
+            window.location.href = '/';
           }
         }
       } else {
@@ -73,35 +145,7 @@ const ProfileSetup = () => {
     }
   };
 
-  const handleSkip = async () => {
-    if (!currentUser) {
-      console.error("No current user found");
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      console.log("Skipping profile setup for user:", currentUser.id);
-      const result = dbService.completeProfileSetup(currentUser.id);
-      console.log("Skip result:", result);
-      
-      if (result.success) {
-        const updatedUser = dbService.getUserById(currentUser.id);
-        console.log("Updated user after skip:", updatedUser);
-        
-        if (updatedUser) {
-          sessionManager.login(updatedUser);
-          navigate("/");
-        }
-      } else {
-        console.error("Skip failed:", result.error);
-      }
-    } catch (error) {
-      console.error("Skip profile setup error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-background">
@@ -132,6 +176,49 @@ const ProfileSetup = () => {
                 />
               </label>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="username">Username *</Label>
+            <Input
+              id="username"
+              value={username}
+              onChange={handleUsernameChange}
+              placeholder="john_doe or john.doe123"
+              pattern="[a-z0-9._]+"
+              minLength={3}
+              maxLength={20}
+              className={
+                usernameError || usernameAvailable === false 
+                  ? "border-red-500 focus:border-red-500" 
+                  : usernameAvailable === true 
+                    ? "border-green-500 focus:border-green-500"
+                    : ""
+              }
+              required
+            />
+            {usernameError ? (
+              <div className="flex items-center gap-1 text-xs text-red-500">
+                <X className="h-3 w-3" />
+                {usernameError}
+              </div>
+            ) : checkingUsername ? (
+              <p className="text-xs text-blue-500">Checking availability...</p>
+            ) : usernameAvailable === false ? (
+              <div className="flex items-center gap-1 text-xs text-red-500">
+                <X className="h-3 w-3" />
+                Username is already taken
+              </div>
+            ) : usernameAvailable === true ? (
+              <div className="flex items-center gap-1 text-xs text-green-500">
+                <Check className="h-3 w-3" />
+                Username is available
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Only lowercase letters, numbers, dots (.) and underscores (_) allowed. 3-20 characters.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -195,25 +282,22 @@ const ProfileSetup = () => {
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={handleSkip}
-              className="flex-1"
-              disabled={loading}
-            >
-              Skip for now
-            </Button>
-            <Button
-              onClick={handleComplete}
-              className="flex-1"
-              disabled={loading}
-            >
-              {loading ? "Saving..." : "Complete Profile"}
-            </Button>
-          </div>
+          <Button
+            onClick={handleComplete}
+            className="w-full"
+            disabled={loading || !username || usernameAvailable !== true}
+          >
+            {loading ? "Saving..." : "Complete Profile"}
+          </Button>
         </div>
       </div>
+      
+      <ImageCropModal
+        isOpen={showCropModal}
+        onClose={() => setShowCropModal(false)}
+        imageSrc={tempImageSrc}
+        onCropComplete={handleCropComplete}
+      />
     </div>
   );
 };

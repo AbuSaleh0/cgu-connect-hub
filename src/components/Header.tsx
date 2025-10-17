@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User } from "lucide-react";
+import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User, Mail } from "lucide-react";
 import { UserPublic } from "@/database";
 import { useNavigate } from "react-router-dom";
+import { useUnreadCount } from "@/database";
 
 interface HeaderProps {
   onLoginClick: () => void;
@@ -30,34 +31,43 @@ const Header = ({
   onLogout
 }: HeaderProps) => {
   const navigate = useNavigate();
+  const unreadCount = useUnreadCount(currentUser?.id || null);
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 md:px-8">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg gradient-primary" />
+        <div className="flex items-center">
           <h1 className="text-xl font-bold text-gradient">CGU Connect</h1>
         </div>
 
         <nav className="hidden md:flex items-center gap-6">
           <button 
-            onClick={onHomeClick || (() => console.log('Home clicked'))}
+            onClick={() => navigate('/')}
             className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
           >
             <Home className="h-5 w-5" />
             <span>Home</span>
           </button>
           <button 
-            onClick={onExploreClick || (() => console.log('Explore clicked'))}
+            onClick={onExploreClick || (() => console.log('Search clicked'))}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
           >
             <Search className="h-5 w-5" />
-            <span>Explore</span>
+            <span>Search</span>
           </button>
           <button 
-            onClick={onMessagesClick || (() => console.log('Messages clicked'))}
-            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+            onClick={onMessagesClick || (() => navigate('/messages'))}
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors relative"
           >
-            <MessageCircle className="h-5 w-5" />
+            <div className="relative">
+              <Mail className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs text-white font-semibold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                </div>
+              )}
+            </div>
             <span>Messages</span>
           </button>
           <button 
@@ -68,7 +78,7 @@ const Header = ({
             <span>Notifications</span>
           </button>
           <button 
-            onClick={onCreateClick || (() => console.log('Create clicked'))}
+            onClick={onCreateClick || (() => navigate('/create'))}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
           >
             <PlusSquare className="h-5 w-5" />
@@ -79,9 +89,10 @@ const Header = ({
         <div className="flex items-center gap-3">
           {isAuthenticated && currentUser ? (
             <>
+              {/* Desktop Profile Link */}
               <button 
                 onClick={() => navigate(`/${currentUser.username}`)}
-                className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
+                className="hidden md:flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={currentUser.avatar} />
@@ -89,14 +100,24 @@ const Header = ({
                     {currentUser.displayName?.[0]?.toUpperCase() || currentUser.username?.[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden md:block font-medium">
+                <span className="font-medium">
                   {currentUser.displayName || currentUser.username}
                 </span>
               </button>
-              <Button variant="ghost" onClick={onLogout}>
-                <LogOut className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Log out</span>
+              
+              {/* Desktop Logout Button */}
+              <Button variant="ghost" onClick={onLogout} className="hidden md:flex">
+                <LogOut className="h-4 w-4 mr-2" />
+                <span>Log out</span>
               </Button>
+
+              {/* Mobile Messages Button Only */}
+              <button 
+                onClick={onMessagesClick || (() => console.log('Messages clicked'))}
+                className="md:hidden flex items-center justify-center p-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <Mail className="h-6 w-6 text-gray-600" />
+              </button>
             </>
           ) : (
             <>

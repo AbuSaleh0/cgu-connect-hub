@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Camera } from "lucide-react";
 import { dbService } from "@/database";
 import { UserPublic } from "@/database/types";
+import ImageCropModal from "@/components/ImageCropModal";
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -24,16 +25,23 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdate }: EditProfileModalP
   const [semester, setSemester] = useState(user.semester);
   const [department, setDepartment] = useState(user.department);
   const [loading, setLoading] = useState(false);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState("");
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setAvatar(e.target?.result as string);
+        setTempImageSrc(e.target?.result as string);
+        setShowCropModal(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleCropComplete = (croppedImage: string) => {
+    setAvatar(croppedImage);
   };
 
   const handleSave = async () => {
@@ -166,6 +174,13 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdate }: EditProfileModalP
           </div>
         </div>
       </DialogContent>
+      
+      <ImageCropModal
+        isOpen={showCropModal}
+        onClose={() => setShowCropModal(false)}
+        imageSrc={tempImageSrc}
+        onCropComplete={handleCropComplete}
+      />
     </Dialog>
   );
 };

@@ -19,10 +19,6 @@ const LoginOverlay = ({ onClose, onLogin, onSignUp }: LoginOverlayProps) => {
         </button>
 
         <div className="text-center space-y-4">
-          <div className="mx-auto h-16 w-16 rounded-full gradient-primary flex items-center justify-center mb-6">
-            <div className="h-12 w-12 rounded-full bg-card" />
-          </div>
-
           <h2 className="text-2xl font-bold">Login to interact</h2>
           <p className="text-muted-foreground">
             Join CGU Connect to like, comment, and share posts with fellow students

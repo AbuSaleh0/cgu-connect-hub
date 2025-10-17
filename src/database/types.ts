@@ -36,6 +36,7 @@ export interface Post {
   caption?: string;
   likes_count: number;
   comments_count: number;
+  pinned?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -137,9 +138,103 @@ export interface GoogleUserData {
 }
 
 export interface UpdateProfileData {
+  username?: string;
   displayName?: string;
   bio?: string;
   avatar?: string;
   semester?: string;
   department?: string;
+}
+
+export interface SavedPost {
+  id: number;
+  user_id: number;
+  post_id: number;
+  created_at: string;
+}
+
+export interface CreateSavedPostData {
+  user_id: number;
+  post_id: number;
+}
+
+export interface Follow {
+  id: number;
+  follower_id: number;
+  following_id: number;
+  created_at: string;
+}
+
+export interface CreateFollowData {
+  follower_id: number;
+  following_id: number;
+}
+
+export interface Notification {
+  id: number;
+  user_id: number;
+  type: 'like' | 'comment' | 'follow';
+  from_user_id: number;
+  post_id?: number;
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface CreateNotificationData {
+  user_id: number;
+  type: 'like' | 'comment' | 'follow';
+  from_user_id: number;
+  post_id?: number;
+  message: string;
+}
+
+// Message-related types
+export interface Conversation {
+  id: number;
+  participant1_id: number;
+  participant2_id: number;
+  last_message_id?: number;
+  last_message_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationWithUsers extends Conversation {
+  participant1_username: string;
+  participant1_avatar?: string;
+  participant2_username: string;
+  participant2_avatar?: string;
+  last_message_content?: string;
+  unread_count: number;
+}
+
+export interface Message {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  content: string;
+  message_type: 'text' | 'image' | 'video';
+  media_url?: string;
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MessageWithSender extends Message {
+  sender_username: string;
+  sender_avatar?: string;
+}
+
+export interface CreateConversationData {
+  participant1_id: number;
+  participant2_id: number;
+}
+
+export interface CreateMessageData {
+  conversation_id: number;
+  sender_id: number;
+  content: string;
+  message_type?: 'text' | 'image' | 'video';
+  media_url?: string;
 }

@@ -8,6 +8,10 @@ import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import ProfileSetup from "./pages/ProfileSetup";
 import PasswordSetup from "./pages/PasswordSetup";
+import CreatePost from "./pages/CreatePost";
+import Search from "./pages/Search";
+import Notifications from "./pages/Notifications";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +30,10 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/password-setup" element={<PasswordSetup />} />
               <Route path="/profile-setup" element={<ProfileSetup />} />
+              <Route path="/create" element={<CreatePost />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/messages" element={<Messages />} />
               <Route path="/:username" element={<Profile />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
