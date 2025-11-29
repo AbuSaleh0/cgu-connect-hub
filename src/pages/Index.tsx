@@ -6,7 +6,7 @@ import PostCard from "@/components/PostCard";
 import LoginOverlay from "@/components/LoginOverlay";
 import AuthPage from "@/components/AuthPage";
 import { Button } from "@/components/ui/button";
-import { dbService, seedDatabase, clearAndReseedDatabase, sessionManager } from "@/database";
+import { dbService, sessionManager } from "@/database";
 import { convertDbPostToCardData, PostCardData } from "@/database/utils";
 
 const Index = () => {
@@ -133,14 +133,21 @@ const Index = () => {
           sessionStorage.removeItem('newSignup');
         }
 
-        console.log('Checking database state...');
+        console.log('Initializing database...');
         
-        // Seed database if empty
-        seedDatabase();
+        try {
+          // Try to initialize SQLite database first
+          await dbService.initialize();
+          console.log('SQLite database initialized successfully');
+        } catch (error) {
+          console.error('SQLite initialization failed:', error);
+          console.log('App will continue with limited functionality');
+          // Don't throw - let the app continue
+        }
         
         console.log('Loading posts...');
         // Load posts
-        loadPosts();
+        await loadPosts();
         console.log('Initialization complete');
       } catch (error) {
         console.error('Error initializing data:', error);

@@ -35,7 +35,7 @@ const PasswordSetup = () => {
     setError("");
     
     try {
-      const result = dbService.setupPassword(currentUser.id, password);
+      const result = await dbService.setupPassword(currentUser.id, password);
       
       if (result.success) {
         const updatedUser = await dbService.getUserById(currentUser.id);

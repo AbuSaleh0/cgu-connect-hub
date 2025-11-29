@@ -29,3 +29,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite WASM file (copied from node_modules during build process)
+# This file should be regenerated, not committed
+public/sql-wasm.wasm

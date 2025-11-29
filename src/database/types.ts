@@ -89,6 +89,7 @@ export interface LoginData {
 export interface AuthResult {
   success: boolean;
   user?: UserPublic;
+  token?: string;
   error?: string;
 }
 

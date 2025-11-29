@@ -1,340 +1,311 @@
-import express from 'express';
-import cors from 'cors';
-import bcrypt from 'bcrypt';
-import db from './database.js';
+const express = require('express');
+const cors = require('cors');
+const sqlite3 = require('sqlite3').verbose();
+const { OAuth2Client } = require('google-auth-library');
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-prod';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID; // Client ID from Google Cloud Console
 
+// Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb' })); // Keep high limit for now if base64 is still sent, but we prefer multer
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Users endpoints
-app.post('/api/users', async (req, res) => {
-  const { username, email, password, avatar, displayName, bio, semester, department } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
-  
-  db.run(
-    `INSERT INTO users (username, email, password, avatar, display_name, bio, semester, department) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [username, email, hashedPassword, avatar || '', displayName || username, bio || '', semester || '', department || ''],
-    function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json({ id: this.lastID, username, email, avatar, displayName, bio, semester, department });
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
+// Multer Setup
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/');
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
     }
-  );
+});
+const upload = multer({ storage: storage });
+
+// Database Setup
+const db = new sqlite3.Database('./database.sqlite', (err) => {
+    if (err) {
+        console.error('Error opening database', err.message);
+    } else {
+        console.log('Connected to the SQLite database.');
+        initializeDatabase();
+    }
 });
 
-app.get('/api/users/:id', (req, res) => {
-  db.get('SELECT * FROM users WHERE id = ?', [req.params.id], (err, row) => {
-    if (err) return res.status(400).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: 'User not found' });
-    const { password, ...user } = row;
-    res.json(user);
-  });
-});
+function initializeDatabase() {
+    db.serialize(() => {
+        // Users table
+        db.run(`CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      avatar TEXT DEFAULT '',
+      display_name TEXT DEFAULT '',
+      bio TEXT DEFAULT '',
+      semester TEXT DEFAULT '',
+      department TEXT DEFAULT '',
+      profile_setup_complete BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
 
-app.get('/api/users/username/:username', (req, res) => {
-  db.get('SELECT * FROM users WHERE username = ?', [req.params.username], (err, row) => {
-    if (err) return res.status(400).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: 'User not found' });
-    const { password, ...user } = row;
-    res.json(user);
-  });
-});
+        // Posts table
+        db.run(`CREATE TABLE IF NOT EXISTS posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      image TEXT NOT NULL,
+      caption TEXT DEFAULT '',
+      likes_count INTEGER DEFAULT 0,
+      comments_count INTEGER DEFAULT 0,
+      pinned BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )`);
 
-app.get('/api/users', (req, res) => {
-  db.all('SELECT * FROM users ORDER BY created_at DESC', (err, rows) => {
-    if (err) return res.status(400).json({ error: err.message });
-    const users = rows.map(row => {
-      const { password, ...user } = row;
-      return user;
+        // Likes table
+        db.run(`CREATE TABLE IF NOT EXISTS likes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      post_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+      UNIQUE(user_id, post_id)
+    )`);
+
+        // Comments table
+        db.run(`CREATE TABLE IF NOT EXISTS comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      post_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
+    )`);
+
+        // Follows table
+        db.run(`CREATE TABLE IF NOT EXISTS follows (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      follower_id INTEGER NOT NULL,
+      following_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE,
+      UNIQUE(follower_id, following_id)
+    )`);
+
+        // Notifications table
+        db.run(`CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      from_user_id INTEGER NOT NULL,
+      post_id INTEGER,
+      message TEXT NOT NULL,
+      read BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (from_user_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE
+    )`);
+
+        // Conversations table
+        db.run(`CREATE TABLE IF NOT EXISTS conversations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      participant1_id INTEGER NOT NULL,
+      participant2_id INTEGER NOT NULL,
+      last_message_id INTEGER,
+      last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (participant1_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (participant2_id) REFERENCES users (id) ON DELETE CASCADE,
+      UNIQUE(participant1_id, participant2_id),
+      CHECK (participant1_id != participant2_id)
+    )`);
+
+        // Messages table
+        db.run(`CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      conversation_id INTEGER NOT NULL,
+      sender_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      message_type TEXT DEFAULT 'text',
+      media_url TEXT,
+      is_read BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE,
+      FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE CASCADE,
+      CHECK (message_type IN ('text', 'image', 'video'))
+    )`);
+
+        console.log('Database tables initialized.');
     });
-    res.json(users);
-  });
-});
+}
 
-app.get('/api/posts/user/:userId', (req, res) => {
-  db.all(
-    `SELECT p.*, u.username, u.avatar as user_avatar 
-     FROM posts p 
-     JOIN users u ON p.user_id = u.id 
-     WHERE p.user_id = ?
-     ORDER BY p.created_at DESC`,
-    [req.params.userId],
-    (err, rows) => {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json(rows);
-    }
-  );
-});
+// Google Auth Client
+const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-app.get('/api/follows/check/:followerId/:followingId', (req, res) => {
-  db.get(
-    'SELECT * FROM follows WHERE follower_id = ? AND following_id = ?',
-    [req.params.followerId, req.params.followingId],
-    (err, row) => {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json({ following: !!row });
-    }
-  );
-});
+// Helper: Upsert User
+function upsertUser(googlePayload) {
+    return new Promise((resolve, reject) => {
+        const { email, name, picture } = googlePayload;
 
-app.post('/api/notifications', (req, res) => {
-  const { user_id, type, from_user_id, post_id, message } = req.body;
-  
-  db.run(
-    'INSERT INTO notifications (user_id, type, from_user_id, post_id, message) VALUES (?, ?, ?, ?, ?)',
-    [user_id, type, from_user_id, post_id || null, message],
-    function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json({ id: this.lastID, user_id, type, from_user_id, post_id, message });
-    }
-  );
-});
-
-app.put('/api/notifications/:userId/read', (req, res) => {
-  db.run(
-    'UPDATE notifications SET read = 1 WHERE user_id = ?',
-    [req.params.userId],
-    function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json({ updated: this.changes });
-    }
-  );
-});
-
-// Posts endpoints
-app.post('/api/posts', (req, res) => {
-  const { user_id, image, caption } = req.body;
-  
-  db.run(
-    'INSERT INTO posts (user_id, image, caption) VALUES (?, ?, ?)',
-    [user_id, image, caption || ''],
-    function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json({ id: this.lastID, user_id, image, caption });
-    }
-  );
-});
-
-app.get('/api/posts', (req, res) => {
-  db.all(
-    `SELECT p.*, u.username, u.avatar as user_avatar 
-     FROM posts p 
-     JOIN users u ON p.user_id = u.id 
-     ORDER BY p.created_at DESC`,
-    (err, rows) => {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json(rows);
-    }
-  );
-});
-
-// Follow endpoints
-app.post('/api/follows/toggle', (req, res) => {
-  const { follower_id, following_id } = req.body;
-  
-  db.get(
-    'SELECT * FROM follows WHERE follower_id = ? AND following_id = ?',
-    [follower_id, following_id],
-    (err, row) => {
-      if (err) return res.status(400).json({ error: err.message });
-      
-      if (row) {
-        // Unfollow
-        db.run(
-          'DELETE FROM follows WHERE follower_id = ? AND following_id = ?',
-          [follower_id, following_id],
-          (err) => {
-            if (err) return res.status(400).json({ error: err.message });
-            res.json({ following: false });
-          }
-        );
-      } else {
-        // Follow
-        db.run(
-          'INSERT INTO follows (follower_id, following_id) VALUES (?, ?)',
-          [follower_id, following_id],
-          (err) => {
-            if (err) return res.status(400).json({ error: err.message });
-            res.json({ following: true });
-          }
-        );
-      }
-    }
-  );
-});
-
-// Notifications endpoints
-app.get('/api/notifications/:userId', (req, res) => {
-  db.all(
-    'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC',
-    [req.params.userId],
-    (err, rows) => {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json(rows);
-    }
-  );
-});
-
-// Messaging endpoints
-app.post('/api/conversations', (req, res) => {
-  const { participant1_id, participant2_id } = req.body;
-  
-  // Ensure participant1_id is smaller for consistent uniqueness
-  const [p1, p2] = participant1_id < participant2_id ? [participant1_id, participant2_id] : [participant2_id, participant1_id];
-  
-  // Check if conversation already exists
-  db.get(
-    'SELECT * FROM conversations WHERE participant1_id = ? AND participant2_id = ?',
-    [p1, p2],
-    (err, row) => {
-      if (err) return res.status(400).json({ error: err.message });
-      
-      if (row) {
-        res.json(row);
-      } else {
-        db.run(
-          'INSERT INTO conversations (participant1_id, participant2_id) VALUES (?, ?)',
-          [p1, p2],
-          function(err) {
-            if (err) return res.status(400).json({ error: err.message });
-            res.json({ id: this.lastID, participant1_id: p1, participant2_id: p2 });
-          }
-        );
-      }
-    }
-  );
-});
-
-app.get('/api/conversations/:userId', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  
-  db.all(`
-    SELECT 
-      c.id,
-      c.participant1_id,
-      c.participant2_id,
-      c.last_message_id,
-      c.last_message_at,
-      c.created_at,
-      c.updated_at,
-      m.content as last_message_content,
-      (SELECT COUNT(*) FROM messages 
-       WHERE conversation_id = c.id 
-       AND sender_id != ? 
-       AND is_read = FALSE) as unread_count
-    FROM conversations c
-    LEFT JOIN messages m ON c.last_message_id = m.id
-    WHERE c.participant1_id = ? OR c.participant2_id = ?
-    ORDER BY c.last_message_at DESC
-  `, [userId, userId, userId], (err, rows) => {
-    if (err) return res.status(400).json({ error: err.message });
-    res.json(rows);
-  });
-});
-
-app.post('/api/messages', (req, res) => {
-  const { conversation_id, sender_id, content, message_type, media_url } = req.body;
-  
-  db.run(
-    'INSERT INTO messages (conversation_id, sender_id, content, message_type, media_url) VALUES (?, ?, ?, ?, ?)',
-    [conversation_id, sender_id, content, message_type || 'text', media_url || null],
-    function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-      
-      // Update conversation's last message info
-      db.run(
-        'UPDATE conversations SET last_message_id = ?, last_message_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [this.lastID, conversation_id],
-        (err) => {
-          if (err) console.error('Error updating conversation:', err);
+        // Domain Check
+        if (!email.endsWith('@cgu-odisha.ac.in')) {
+            return reject(new Error('Unauthorized domain. Please use your @cgu-odisha.ac.in email.'));
         }
-      );
-      
-      res.json({ 
-        id: this.lastID, 
-        conversation_id, 
-        sender_id, 
-        content, 
-        message_type: message_type || 'text',
-        media_url,
-        is_read: false,
-        created_at: new Date().toISOString()
-      });
+
+        db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
+            if (err) return reject(err);
+
+            if (row) {
+                // Update existing user info if needed (e.g. avatar)
+                // For now, just return the user
+                resolve(row);
+            } else {
+                // Create new user
+                const username = email.split('@')[0];
+                db.run(
+                    `INSERT INTO users (username, email, avatar, display_name, profile_setup_complete) VALUES (?, ?, ?, ?, ?)`,
+                    [username, email, picture, name, 0],
+                    function (err) {
+                        if (err) return reject(err);
+                        // Get the new user
+                        db.get('SELECT * FROM users WHERE id = ?', [this.lastID], (err, newUser) => {
+                            if (err) return reject(err);
+                            resolve(newUser);
+                        });
+                    }
+                );
+            }
+        });
+    });
+}
+
+// Middleware: Authenticate Token
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.sendStatus(401);
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user; // user object contains { id, email, ... }
+        next();
+    });
+}
+
+// --- ROUTES ---
+
+// Auth Route
+app.post('/api/auth/google', async (req, res) => {
+    const { credential } = req.body;
+
+    try {
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+
+        const user = await upsertUser(payload);
+
+        // Create App JWT
+        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+
+        res.json({ token, user });
+    } catch (error) {
+        console.error('Auth Error:', error);
+        res.status(401).json({ error: error.message || 'Authentication failed' });
     }
-  );
 });
 
-app.get('/api/messages/:conversationId', (req, res) => {
-  const { limit = 50, offset = 0 } = req.query;
-  
-  db.all(`
-    SELECT 
-      m.id,
-      m.conversation_id,
-      m.sender_id,
-      m.content,
-      m.message_type,
-      m.is_read,
-      m.created_at,
-      m.updated_at
-    FROM messages m
-    WHERE m.conversation_id = ?
-    ORDER BY m.created_at DESC
+// Get Current User
+app.get('/api/me', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM users WHERE id = ?', [req.user.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'User not found' });
+        res.json(row);
+    });
+});
+
+// Posts Routes
+app.get('/api/posts', authenticateToken, (req, res) => {
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const sql = `
+    SELECT p.*, u.username, u.avatar as user_avatar 
+    FROM posts p 
+    JOIN users u ON p.user_id = u.id 
+    ORDER BY p.created_at DESC 
     LIMIT ? OFFSET ?
-  `, [req.params.conversationId, limit, offset], (err, rows) => {
-    if (err) return res.status(400).json({ error: err.message });
-    res.json(rows.reverse()); // Return in chronological order
-  });
+  `;
+
+    db.all(sql, [limit, offset], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
 });
 
-app.put('/api/messages/:conversationId/read/:userId', (req, res) => {
-  db.run(
-    'UPDATE messages SET is_read = TRUE WHERE conversation_id = ? AND sender_id != ? AND is_read = FALSE',
-    [req.params.conversationId, req.params.userId],
-    function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-      res.json({ updated: this.changes });
+app.post('/api/posts', authenticateToken, upload.single('image'), (req, res) => {
+    const { caption } = req.body;
+
+    let imagePath = '';
+    if (req.file) {
+        // Store relative path for frontend to access via static middleware
+        imagePath = '/uploads/' + req.file.filename;
+    } else if (req.body.image) {
+        // Fallback for Base64 if client still sends it (though we prefer file upload)
+        // Ideally we should reject this or decode it to a file, but for now let's allow it if it's a string
+        // But the requirement said "Refactor... use multer". So we prioritize multer.
+        // If no file, check if image is in body (maybe base64 string)
+        imagePath = req.body.image;
     }
-  );
+
+    if (!imagePath) {
+        return res.status(400).json({ error: 'Image is required' });
+    }
+
+    const sql = `INSERT INTO posts (user_id, image, caption) VALUES (?, ?, ?)`;
+    db.run(sql, [req.user.id, imagePath, caption || ''], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Return the created post with user info
+        const newPostId = this.lastID;
+        const getSql = `
+      SELECT p.*, u.username, u.avatar as user_avatar 
+      FROM posts p 
+      JOIN users u ON p.user_id = u.id 
+      WHERE p.id = ?
+    `;
+        db.get(getSql, [newPostId], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json(row);
+        });
+    });
 });
 
-app.get('/api/messages/unread/:userId', (req, res) => {
-  db.get(`
-    SELECT COUNT(*) as count FROM messages m
-    JOIN conversations c ON m.conversation_id = c.id
-    WHERE (c.participant1_id = ? OR c.participant2_id = ?)
-    AND m.sender_id != ?
-    AND m.is_read = FALSE
-  `, [req.params.userId, req.params.userId, req.params.userId], (err, row) => {
-    if (err) return res.status(400).json({ error: err.message });
-    res.json({ count: row.count });
-  });
-});
-
-// Clear database endpoint (for development only)
-app.delete('/api/reset-database', (req, res) => {
-  db.serialize(() => {
-    db.run('DELETE FROM messages');
-    db.run('DELETE FROM conversations');
-    db.run('DELETE FROM saved_posts');
-    db.run('DELETE FROM notifications');
-    db.run('DELETE FROM follows');
-    db.run('DELETE FROM comments');
-    db.run('DELETE FROM likes');
-    db.run('DELETE FROM posts');
-    db.run('DELETE FROM otp_codes');
-    db.run('DELETE FROM users');
-    
-    // Reset auto-increment counters
-    db.run('DELETE FROM sqlite_sequence');
-    
-    res.json({ message: 'Database cleared successfully' });
-  });
-});
-
+// Start Server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });

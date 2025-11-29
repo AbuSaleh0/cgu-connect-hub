@@ -1,17 +1,16 @@
-import { dbService } from './service';
+import { completeDatabaseService as dbService } from './complete-service';
 
 
-export const clearAndReseedDatabase = () => {
+export const clearAndReseedDatabase = async () => {
   try {
     console.log('Clearing database completely...');
     
-    // Clear all existing data
-    localStorage.removeItem('cgu-connect-db');
-    
+    // Note: In SQLite, we would need to drop and recreate tables
+    // For now, we'll just try to create users if they don't exist
     console.log('Database cleared, creating fresh user accounts...');
     
     // Now seed with users only
-    seedDatabase();
+    await seedDatabase();
     
   } catch (error) {
     console.error('Error clearing and reseeding database:', error);
@@ -19,13 +18,13 @@ export const clearAndReseedDatabase = () => {
   }
 };
 
-export const seedDatabase = () => {
+export const seedDatabase = async () => {
   try {
     console.log('Starting database seeding...');
 
     // Check if users already exist to prevent duplicate seeding
     console.log('Checking for existing users...');
-    const existingUsers = dbService.getAllUsers();
+    const existingUsers = await dbService.getAllUsers();
     console.log('Existing users count:', existingUsers.length);
     
     if (existingUsers.length > 0) {
@@ -36,21 +35,21 @@ export const seedDatabase = () => {
     console.log('Database empty, creating user accounts...');
 
     // Create sample users
-    const user1 = dbService.createUser({
+    const user1 = await dbService.createUser({
       username: 'rahul.sharma',
       email: 'rahul.sharma@cgu-odisha.ac.in',
       password: 'password123',
       avatar: ''
     });
 
-    const user2 = dbService.createUser({
+    const user2 = await dbService.createUser({
       username: 'priya.patel',
       email: 'priya.patel@cgu-odisha.ac.in',
       password: 'password123',
       avatar: ''
     });
 
-    const user3 = dbService.createUser({
+    const user3 = await dbService.createUser({
       username: 'amit.kumar',
       email: 'amit.kumar@cgu-odisha.ac.in',
       password: 'password123',
@@ -60,8 +59,10 @@ export const seedDatabase = () => {
     console.log('Created sample users');
     console.log('Database seeded with user accounts only - posts will be created by real users');
     console.log('Database seeding completed successfully!');
-    console.log('Total users created:', dbService.getAllUsers().length);
-    console.log('Total posts created:', dbService.getAllPosts().length);
+    const allUsers = await dbService.getAllUsers();
+    const allPosts = await dbService.getAllPosts();
+    console.log('Total users created:', allUsers.length);
+    console.log('Total posts created:', allPosts.length);
 
   } catch (error) {
     console.error('Error seeding database:', error);

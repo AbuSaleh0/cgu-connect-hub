@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Upload, Check, Crop } from "lucide-react";
 import { dbService, sessionManager } from "@/database";
-import DatabaseConnection from "@/database/connection";
 import { useNavigate } from "react-router-dom";
 import MobileBottomNav from "@/components/MobileBottomNav";
 
@@ -40,17 +39,6 @@ const CreatePost = () => {
   const [selectedRatio, setSelectedRatio] = useState<string>('1:1');
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
-  const [storageInfo, setStorageInfo] = useState<{usedMB: string; totalPosts: number; totalUsers: number} | null>(null);
-
-  // Load storage info on component mount
-  useEffect(() => {
-    try {
-      const db = DatabaseConnection.getInstance();
-      setStorageInfo(db.getStorageInfo());
-    } catch (error) {
-      console.error("Error getting storage info:", error);
-    }
-  }, []);
 
   // Auto-redirect after success dialog is shown (fallback)
   useEffect(() => {
@@ -363,14 +351,6 @@ const CreatePost = () => {
             </Alert>
           )}
 
-          {storageInfo && parseFloat(storageInfo.usedMB) > 4 && (
-            <Alert className="border-orange-500 bg-orange-50">
-              <AlertDescription className="text-orange-800">
-                ⚠️ Storage Warning: Using {storageInfo.usedMB} MB ({storageInfo.totalPosts} posts). 
-                Consider using smaller images to avoid storage issues.
-              </AlertDescription>
-            </Alert>
-          )}
           
           <div className="space-y-2">
             <Label>Photo</Label>

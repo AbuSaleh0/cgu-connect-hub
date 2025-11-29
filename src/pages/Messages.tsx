@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import LoginOverlay from "@/components/LoginOverlay";
 import { dbService, sessionManager, messageEventSystem, useRealtimeMessages } from "@/database";
 import { ConversationWithUsers, MessageWithSender, User } from "@/database/types";
 
@@ -511,6 +512,7 @@ const Messages = () => {
   const [loading, setLoading] = useState(true);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showLoginOverlay, setShowLoginOverlay] = useState(false);
 
   const currentUser = sessionManager.getCurrentUser();
 
@@ -548,7 +550,7 @@ const Messages = () => {
 
   useEffect(() => {
     if (!currentUser) {
-      navigate('/');
+      setShowLoginOverlay(true);
       return;
     }
 
@@ -626,8 +628,54 @@ const Messages = () => {
     }
   };
 
+  const handleLoginClick = () => {
+    setShowLoginOverlay(false);
+    navigate('/?auth=login');
+  };
+
+  const handleSignUpClick = () => {
+    setShowLoginOverlay(false);
+    navigate('/?auth=signup');
+  };
+
   if (!currentUser) {
-    return <div>Please log in to view messages</div>;
+    return (
+      <div className="h-screen flex flex-col">
+        {/* Header */}
+        <div className="border-b bg-white p-4">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate('/')}
+              className="p-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h1 className="text-xl font-bold">Messages</h1>
+          </div>
+        </div>
+        
+        {/* Login Required Message */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center">
+            <div className="text-4xl mb-4">💬</div>
+            <h3 className="text-lg font-semibold mb-2">Login Required</h3>
+            <p className="text-gray-600 mb-4">
+              Please log in to view and send messages
+            </p>
+          </div>
+        </div>
+        
+        {showLoginOverlay && (
+          <LoginOverlay
+            onClose={() => setShowLoginOverlay(false)}
+            onLogin={handleLoginClick}
+            onSignUp={handleSignUpClick}
+          />
+        )}
+      </div>
+    );
   }
 
   // Mobile: Show chat window when conversation is selected
@@ -730,6 +778,14 @@ const Messages = () => {
         onClose={() => setShowNewChatModal(false)}
         onUserSelect={handleNewUserSelect}
       />
+      
+      {showLoginOverlay && (
+        <LoginOverlay
+          onClose={() => setShowLoginOverlay(false)}
+          onLogin={handleLoginClick}
+          onSignUp={handleSignUpClick}
+        />
+      )}
     </div>
   );
 };
