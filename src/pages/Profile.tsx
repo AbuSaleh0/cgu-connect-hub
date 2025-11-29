@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Settings, UserPlus, MessageCircle, User, Lock, Bookmark, LogOut, Menu, X, MessageSquare, Heart, Pin } from "lucide-react";
-import { dbService, sessionManager } from "@/database";
+import { dbService } from "@/database";
+import { sessionManager } from "@/lib/session";
 import { UserPublic, PostWithUser } from "@/database/types";
 import PostCard from "@/components/PostCard";
 import EditProfileModal from "@/components/EditProfileModal";
@@ -18,7 +19,7 @@ const Profile = () => {
   const { username } = useParams();
   const navigate = useNavigate();
   const currentUser = sessionManager.getCurrentUser();
-  
+
   const [user, setUser] = useState<UserPublic | null>(null);
   const [posts, setPosts] = useState<PostWithUser[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -37,16 +38,16 @@ const Profile = () => {
   const [selectedPost, setSelectedPost] = useState<PostWithUser | null>(null);
   const [showPostDetail, setShowPostDetail] = useState(false);
 
-  
+
   useEffect(() => {
     console.log('showChangeUsernameModal state changed:', showChangeUsernameModal);
   }, [showChangeUsernameModal]);
 
   const isOwnProfile = currentUser?.username === username;
-  console.log('Profile page debug:', { 
-    currentUsername: currentUser?.username, 
-    pageUsername: username, 
-    isOwnProfile 
+  console.log('Profile page debug:', {
+    currentUsername: currentUser?.username,
+    pageUsername: username,
+    isOwnProfile
   });
 
   const loadUserData = async () => {
@@ -57,15 +58,15 @@ const Profile = () => {
         if (foundUser) {
           const { password, ...publicUser } = foundUser;
           setUser(publicUser);
-          
+
           // Clear posts first to avoid showing stale data
           setPosts([]);
-          
+
           const userPosts = await dbService.getPostsByUser(foundUser.id);
-          
+
           // Double-check: filter posts to ensure only this user's posts
           const filteredPosts = userPosts.filter(post => post.user_id === foundUser.id);
-          
+
           console.log('Profile posts debug:', {
             username: foundUser.username,
             userId: foundUser.id,
@@ -73,18 +74,18 @@ const Profile = () => {
             filteredPosts: filteredPosts.length,
             postOwners: userPosts.map(p => ({ id: p.id, owner: p.username, userId: p.user_id }))
           });
-          
+
           setPosts(filteredPosts);
-          
+
           // Check if current user is following this user
           if (currentUser && !isOwnProfile) {
             setIsFollowing(await dbService.isFollowing(currentUser.id, foundUser.id));
           }
-          
+
           // Load follower and following counts
           setFollowerCount(await dbService.getFollowerCount(foundUser.id));
           setFollowingCount(await dbService.getFollowingCount(foundUser.id));
-          
+
           // Load followers and following lists
           setFollowersList(await dbService.getFollowersList(foundUser.id));
           setFollowingList(await dbService.getFollowingList(foundUser.id));
@@ -98,16 +99,16 @@ const Profile = () => {
 
   const handleFollowToggle = async () => {
     if (!currentUser || !user || followLoading) return;
-    
+
     setFollowLoading(true);
     try {
       const newFollowState = await dbService.toggleFollow({
         follower_id: currentUser.id,
         following_id: user.id
       });
-      
+
       setIsFollowing(newFollowState);
-      
+
       // Update follower count and list
       if (user) {
         setFollowerCount(await dbService.getFollowerCount(user.id));
@@ -181,12 +182,12 @@ const Profile = () => {
   const handleUsernameUpdate = async (newUsername: string) => {
     // Update the URL to reflect the new username
     navigate(`/${newUsername}`, { replace: true });
-    
+
     // Update the user state
     if (currentUser) {
       const updatedUser = { ...currentUser, username: newUsername };
       sessionManager.login(updatedUser); // Update session with new username
-      
+
       // Refresh user data
       try {
         const refreshedUser = await dbService.getUserByUsername(newUsername);
@@ -210,7 +211,7 @@ const Profile = () => {
   const handleClosePostDetail = async () => {
     setShowPostDetail(false);
     setSelectedPost(null);
-    
+
     // Refresh posts data to get updated like/comment counts
     if (user) {
       try {
@@ -225,11 +226,11 @@ const Profile = () => {
 
   const handleMessageUser = async () => {
     if (!user || !currentUser) return;
-    
+
     try {
       // Try to find existing conversation or create new one
       let conversation = await dbService.getConversationBetweenUsers(currentUser.id, user.id);
-      
+
       if (!conversation) {
         conversation = await dbService.createConversation({
           participant1_id: currentUser.id,
@@ -274,7 +275,7 @@ const Profile = () => {
       {/* Menu Overlay */}
       {isOwnProfile && showMenu && (
         <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setShowMenu(false)}>
-          <div 
+          <div
             className="fixed top-20 right-4 md:right-6 bg-white rounded-lg shadow-xl border p-4 min-w-[200px] max-w-[280px] w-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -360,7 +361,7 @@ const Profile = () => {
             </Button>
             <h1 className="text-xl font-semibold">{user.username}</h1>
           </div>
-          
+
           {/* Menu Button - Only for own profile */}
           {isOwnProfile && (
             <Button
@@ -389,7 +390,7 @@ const Profile = () => {
             <div className="flex-1 space-y-3 md:space-y-4 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                 <h2 className="text-lg md:text-xl font-semibold truncate">{user.displayName}</h2>
-                
+
                 {/* Desktop buttons - hidden on mobile */}
                 <div className="hidden md:flex">
                   {isOwnProfile ? (
@@ -427,13 +428,13 @@ const Profile = () => {
 
               <div className="flex gap-4 md:gap-6 text-sm">
                 <span><strong>{posts.length}</strong> posts</span>
-                <button 
+                <button
                   onClick={() => setShowFollowersModal(true)}
                   className="hover:text-primary transition-colors truncate"
                 >
                   <strong>{followerCount}</strong> followers
                 </button>
-                <button 
+                <button
                   onClick={() => setShowFollowingModal(true)}
                   className="hover:text-primary transition-colors truncate"
                 >
@@ -444,7 +445,7 @@ const Profile = () => {
               {user.bio && (
                 <p className="text-sm text-muted-foreground">{user.bio}</p>
               )}
-              
+
               {(user.semester || user.department) && (
                 <div className="flex gap-4 text-sm text-muted-foreground">
                   {user.semester && <span>📚 {user.semester}</span>}
@@ -496,8 +497,8 @@ const Profile = () => {
             {posts.length > 0 ? (
               <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
                 {posts.map((post) => (
-                  <div 
-                    key={post.id} 
+                  <div
+                    key={post.id}
                     className="aspect-square relative group cursor-pointer"
                     onClick={() => handlePostClick(post)}
                   >
@@ -506,14 +507,14 @@ const Profile = () => {
                       alt={post.caption || "Post"}
                       className="w-full h-full object-cover rounded-lg transition-all duration-300 group-hover:brightness-75"
                     />
-                    
+
                     {/* Pin icon for pinned posts */}
                     {post.pinned && (
                       <div className="absolute top-2 left-2 p-1 bg-black/70 rounded-full text-white">
                         <Pin className="h-4 w-4" />
                       </div>
                     )}
-                    
+
                     {/* Hover overlay with post stats */}
                     <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                       <div className="flex items-center gap-6 text-white">

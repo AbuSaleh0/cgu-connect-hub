@@ -13,21 +13,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Upload, Check, Crop } from "lucide-react";
-import { dbService, sessionManager } from "@/database";
+import { dbService } from "@/database";
+import { sessionManager } from "@/lib/session";
 import { useNavigate } from "react-router-dom";
 import MobileBottomNav from "@/components/MobileBottomNav";
 
 const CreatePost = () => {
   const navigate = useNavigate();
   const currentUser = sessionManager.getCurrentUser();
-  
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!currentUser) {
       navigate('/');
     }
   }, [currentUser, navigate]);
-  
+
   const [image, setImage] = useState("");
   const [originalImage, setOriginalImage] = useState("");
   const [caption, setCaption] = useState("");
@@ -55,35 +56,35 @@ const CreatePost = () => {
 
   const updateCropArea = (ratio: string, imgWidth: number, imgHeight: number) => {
     let cropWidth, cropHeight;
-    
+
     switch (ratio) {
       case '1:1':
         const minDim = Math.min(imgWidth, imgHeight);
         cropWidth = cropHeight = minDim;
         break;
       case '4:5':
-        if (imgWidth / imgHeight > 4/5) {
+        if (imgWidth / imgHeight > 4 / 5) {
           cropHeight = imgHeight;
-          cropWidth = imgHeight * (4/5);
+          cropWidth = imgHeight * (4 / 5);
         } else {
           cropWidth = imgWidth;
-          cropHeight = imgWidth * (5/4);
+          cropHeight = imgWidth * (5 / 4);
         }
         break;
       case '16:9':
-        if (imgWidth / imgHeight > 16/9) {
+        if (imgWidth / imgHeight > 16 / 9) {
           cropHeight = imgHeight;
-          cropWidth = imgHeight * (16/9);
+          cropWidth = imgHeight * (16 / 9);
         } else {
           cropWidth = imgWidth;
-          cropHeight = imgWidth * (9/16);
+          cropHeight = imgWidth * (9 / 16);
         }
         break;
       default:
         cropWidth = imgWidth;
         cropHeight = imgHeight;
     }
-    
+
     setCropArea({
       x: (imgWidth - cropWidth) / 2,
       y: (imgHeight - cropHeight) / 2,
@@ -97,30 +98,30 @@ const CreatePost = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
-      
+
       img.onload = () => {
         const maxWidth = 800;
         let finalWidth = cropArea.width;
         let finalHeight = cropArea.height;
-        
+
         if (cropArea.width > maxWidth) {
           finalWidth = maxWidth;
           finalHeight = (cropArea.height * maxWidth) / cropArea.width;
         }
-        
+
         canvas.width = finalWidth;
         canvas.height = finalHeight;
-        
+
         ctx?.drawImage(
           img,
           cropArea.x, cropArea.y, cropArea.width, cropArea.height,
           0, 0, finalWidth, finalHeight
         );
-        
+
         const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
         resolve(croppedDataUrl);
       };
-      
+
       img.src = imageDataUrl;
     });
   };
@@ -130,7 +131,7 @@ const CreatePost = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
-      
+
       img.onload = () => {
         // Calculate new dimensions
         let { width, height } = img;
@@ -138,17 +139,17 @@ const CreatePost = () => {
           height = (height * maxWidth) / width;
           width = maxWidth;
         }
-        
+
         // Set canvas size
         canvas.width = width;
         canvas.height = height;
-        
+
         // Draw and compress
         ctx?.drawImage(img, 0, 0, width, height);
         const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(compressedDataUrl);
       };
-      
+
       img.src = URL.createObjectURL(file);
     });
   };
@@ -157,21 +158,21 @@ const CreatePost = () => {
     const file = event.target.files?.[0];
     if (file) {
       const fileType = file.type;
-      
+
       if (fileType.startsWith('image/')) {
         const maxSize = 5 * 1024 * 1024; // 5MB limit
-        
+
         if (file.size > maxSize) {
           setError("Image must be smaller than 5MB");
           return;
         }
-        
+
         // Compress image and show crop options
         try {
           compressImage(file, 800, 0.7).then((compressedImage) => {
             console.log("Compressed image size:", (compressedImage.length / 1024 / 1024).toFixed(2), "MB");
             setOriginalImage(compressedImage);
-            
+
             // Get image dimensions
             const img = new Image();
             img.onload = () => {
@@ -180,7 +181,7 @@ const CreatePost = () => {
               setShowCropOptions(true);
             };
             img.src = compressedImage;
-            
+
             setError(""); // Clear any previous errors
           });
         } catch (error) {
@@ -189,7 +190,7 @@ const CreatePost = () => {
           reader.onload = (e) => {
             const result = e.target?.result as string;
             setOriginalImage(result);
-            
+
             const img = new Image();
             img.onload = () => {
               setImageDimensions({ width: img.width, height: img.height });
@@ -228,23 +229,23 @@ const CreatePost = () => {
     const startX = e.clientX;
     const startY = e.clientY;
     const startCrop = { ...cropArea };
-    
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX;
       const deltaY = moveEvent.clientY - startY;
-      
+
       if (type === 'move') {
         const newX = Math.max(0, Math.min(imageDimensions.width - cropArea.width, startCrop.x + deltaX));
         const newY = Math.max(0, Math.min(imageDimensions.height - cropArea.height, startCrop.y + deltaY));
         setCropArea(prev => ({ ...prev, x: newX, y: newY }));
       }
     };
-    
+
     const handleMouseUp = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-    
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   };
@@ -259,26 +260,26 @@ const CreatePost = () => {
       console.log("Missing user or image:", { user: !!currentUser, image: !!image });
       return;
     }
-    
+
     setLoading(true);
     setError(""); // Clear any previous errors
     setSuccess(false); // Clear previous success state
-    
+
     try {
-      console.log("Creating post for user:", currentUser.username, "with data:", { 
-        user_id: currentUser.id, 
-        image: image.substring(0, 50) + "...", 
-        caption 
+      console.log("Creating post for user:", currentUser.username, "with data:", {
+        user_id: currentUser.id,
+        image: image.substring(0, 50) + "...",
+        caption
       });
-      
+
       const newPost = await dbService.createPost({
         user_id: currentUser.id,
         image: image,
         caption
       });
-      
+
       console.log("Post created successfully:", newPost);
-      
+
       // Double check if the post was actually created
       if (newPost && newPost.id) {
         console.log("Post validation successful, ID:", newPost.id);
@@ -297,7 +298,7 @@ const CreatePost = () => {
         imageExists: !!image,
         captionLength: caption?.length || 0
       });
-      
+
       // Provide specific error messages for different types of errors
       if (error.message.includes("quota")) {
         setError("Storage full! Your image is too large or browser storage is full. Try using a smaller image or clear browser data.");
@@ -314,7 +315,7 @@ const CreatePost = () => {
   const handleDialogConfirm = () => {
     console.log("Navigating to home page...");
     setShowSuccessDialog(false);
-    
+
     // Use window.location.href as a fallback if navigate doesn't work
     try {
       navigate("/");
@@ -344,14 +345,14 @@ const CreatePost = () => {
               </AlertDescription>
             </Alert>
           )}
-          
+
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          
+
           <div className="space-y-2">
             <Label>Photo</Label>
             <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center relative">
@@ -361,9 +362,9 @@ const CreatePost = () => {
                   <p className="text-xs text-green-600">
                     ✓ Image cropped to {selectedRatio} ratio and optimized
                   </p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       setImage("");
                       setOriginalImage("");
@@ -400,11 +401,11 @@ const CreatePost = () => {
                   <Crop className="h-5 w-5" />
                   <h3 className="text-lg font-semibold">Choose Aspect Ratio</h3>
                 </div>
-                
+
                 {originalImage && (
                   <div className="space-y-3">
                     <img src={originalImage} alt="Original" className="w-full max-h-48 object-contain rounded" />
-                    
+
                     <div className="space-y-3">
                       <Label>Select aspect ratio and drag to position:</Label>
                       <div className="grid grid-cols-3 gap-2">
@@ -433,16 +434,16 @@ const CreatePost = () => {
                           16:9 Landscape
                         </Button>
                       </div>
-                      
+
                       {/* Interactive Crop Area */}
                       <div className="relative inline-block max-w-full">
-                        <img 
-                          src={originalImage} 
-                          alt="Crop preview" 
+                        <img
+                          src={originalImage}
+                          alt="Crop preview"
                           className="max-w-full max-h-64 block"
                           style={{ width: 'auto', height: 'auto' }}
                         />
-                        <div 
+                        <div
                           className="absolute border-2 border-blue-500 bg-blue-500/20 cursor-move"
                           style={{
                             left: `${(cropArea.x / imageDimensions.width) * 100}%`,
@@ -458,7 +459,7 @@ const CreatePost = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-2 pt-2">
                       <Button variant="outline" onClick={handleCropCancel} className="flex-1">
                         Cancel
@@ -504,7 +505,7 @@ const CreatePost = () => {
               Post Created Successfully!
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Your post has been created and shared with the CGU Connect community. 
+              Your post has been created and shared with the CGU Connect community.
               Click "Go to Home Feed" or wait 5 seconds for automatic redirect.
             </AlertDialogDescription>
           </AlertDialogHeader>

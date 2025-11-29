@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Search as SearchIcon } from "lucide-react";
-import { dbService, sessionManager } from "@/database";
+import { dbService } from "@/database";
+import { sessionManager } from "@/lib/session";
 import { UserPublic } from "@/database/types";
 import MobileBottomNav from "@/components/MobileBottomNav";
 
@@ -26,7 +27,7 @@ const Search = () => {
           return publicUser;
         })
         .slice(0, 10);
-      
+
       setRecommendations(userRecommendations);
     } catch (error) {
       console.error('Error loading recommendations:', error);
@@ -46,7 +47,7 @@ const Search = () => {
     try {
       const allUsers = await dbService.getAllUsers();
       const results = allUsers
-        .filter(user => 
+        .filter(user =>
           user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
           user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
         )
@@ -54,7 +55,7 @@ const Search = () => {
           const { password, ...publicUser } = user;
           return publicUser;
         });
-      
+
       setSearchResults(results);
     } catch (error) {
       console.error('Search error:', error);
@@ -130,7 +131,7 @@ const Search = () => {
               )}
             </>
           )}
-          
+
           {searchQuery.trim() && (
             <>
               {loading ? (
@@ -162,7 +163,7 @@ const Search = () => {
               )}
             </>
           )}
-          
+
           {!searchQuery.trim() && !loadingRecommendations && recommendations.length === 0 && (
             <div className="text-center text-muted-foreground">No users available</div>
           )}

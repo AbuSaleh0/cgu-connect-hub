@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
-import { dbService, sessionManager } from "@/database";
+import { dbService } from "@/database";
+import { sessionManager } from "@/lib/session";
 import { useNavigate } from "react-router-dom";
 
 const PasswordSetup = () => {
   const navigate = useNavigate();
   const currentUser = sessionManager.getCurrentUser();
-  
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -20,29 +21,29 @@ const PasswordSetup = () => {
 
   const handleSetupPassword = async () => {
     if (!currentUser) return;
-    
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters long");
       return;
     }
-    
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    
+
     setLoading(true);
     setError("");
-    
+
     try {
       const result = await dbService.setupPassword(currentUser.id, password);
-      
+
       if (result.success) {
         const updatedUser = await dbService.getUserById(currentUser.id);
         if (updatedUser) {
           sessionManager.login(updatedUser);
         }
-        
+
         // Check if profile setup is needed
         if (!updatedUser?.profileSetupComplete) {
           // Keep the new signup flag since user is still in signup flow

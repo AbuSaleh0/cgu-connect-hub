@@ -11,14 +11,12 @@ export default defineConfig(({ mode }) => ({
     port: 8081,
     strictPort: true,
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react()].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  optimizeDeps: {
-    exclude: ['sql.js'],
-  },
+
   assetsInclude: ['**/*.wasm'],
 }));

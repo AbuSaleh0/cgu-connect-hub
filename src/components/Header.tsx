@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User, Mail } from "lucide-react";
 import { UserPublic } from "@/database";
 import { useNavigate } from "react-router-dom";
-import { useUnreadCount } from "@/database";
+import { useUnreadCount } from "@/database/messaging";
 
 interface HeaderProps {
   onLoginClick: () => void;
@@ -18,8 +18,8 @@ interface HeaderProps {
   onLogout?: () => void;
 }
 
-const Header = ({ 
-  onLoginClick, 
+const Header = ({
+  onLoginClick,
   onSignUpClick,
   onHomeClick,
   onExploreClick,
@@ -40,21 +40,21 @@ const Header = ({
         </div>
 
         <nav className="hidden md:flex items-center gap-6">
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
           >
             <Home className="h-5 w-5" />
             <span>Home</span>
           </button>
-          <button 
+          <button
             onClick={onExploreClick || (() => console.log('Search clicked'))}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
           >
             <Search className="h-5 w-5" />
             <span>Search</span>
           </button>
-          <button 
+          <button
             onClick={onMessagesClick || (() => navigate('/messages'))}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors relative"
           >
@@ -70,14 +70,14 @@ const Header = ({
             </div>
             <span>Messages</span>
           </button>
-          <button 
+          <button
             onClick={onNotificationsClick || (() => console.log('Notifications clicked'))}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
           >
             <Heart className="h-5 w-5" />
             <span>Notifications</span>
           </button>
-          <button 
+          <button
             onClick={onCreateClick || (() => navigate('/create'))}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
           >
@@ -90,7 +90,7 @@ const Header = ({
           {isAuthenticated && currentUser ? (
             <>
               {/* Desktop Profile Link */}
-              <button 
+              <button
                 onClick={() => navigate(`/${currentUser.username}`)}
                 className="hidden md:flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
               >
@@ -104,7 +104,7 @@ const Header = ({
                   {currentUser.displayName || currentUser.username}
                 </span>
               </button>
-              
+
               {/* Desktop Logout Button */}
               <Button variant="ghost" onClick={onLogout} className="hidden md:flex">
                 <LogOut className="h-4 w-4 mr-2" />
@@ -112,7 +112,7 @@ const Header = ({
               </Button>
 
               {/* Mobile Messages Button Only */}
-              <button 
+              <button
                 onClick={onMessagesClick || (() => console.log('Messages clicked'))}
                 className="md:hidden flex items-center justify-center p-2 rounded-full hover:bg-gray-100 transition-colors"
               >

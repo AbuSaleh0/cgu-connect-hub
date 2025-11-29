@@ -1,18 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Search, Edit3, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import LoginOverlay from "@/components/LoginOverlay";
-import { dbService, sessionManager, messageEventSystem, useRealtimeMessages } from "@/database";
-import { ConversationWithUsers, MessageWithSender, User } from "@/database/types";
 
-interface MessageInputProps {
-  conversationId: number;
-  onMessageSent: () => void;
-}
 
 const MessageInput = ({ conversationId, onMessageSent }: MessageInputProps) => {
   const [message, setMessage] = useState("");
@@ -31,7 +19,7 @@ const MessageInput = ({ conversationId, onMessageSent }: MessageInputProps) => {
         sender_id: currentUser.id,
         content: message.trim()
       });
-      
+
       const newMessage = await dbService.createMessage({
         conversation_id: conversationId,
         sender_id: currentUser.id,
@@ -44,7 +32,7 @@ const MessageInput = ({ conversationId, onMessageSent }: MessageInputProps) => {
       if (newMessage) {
         setMessage("");
         onMessageSent();
-        
+
         // Emit real-time event
         console.log('Emitting message event');
         messageEventSystem.emit({
@@ -105,10 +93,10 @@ interface MessageBubbleProps {
 const MessageBubble = ({ message, isOwn, showSeen }: MessageBubbleProps) => {
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
   };
 
@@ -116,11 +104,10 @@ const MessageBubble = ({ message, isOwn, showSeen }: MessageBubbleProps) => {
     <div className={`flex mb-4 ${isOwn ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[70%] ${isOwn ? 'order-2' : 'order-1'}`}>
         <div
-          className={`px-4 py-2 rounded-2xl ${
-            isOwn
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-100 text-gray-900'
-          }`}
+          className={`px-4 py-2 rounded-2xl ${isOwn
+            ? 'bg-blue-500 text-white'
+            : 'bg-gray-100 text-gray-900'
+            }`}
         >
           <p className="text-sm">{message.content}</p>
         </div>
@@ -153,13 +140,13 @@ const ChatWindow = ({ conversation, currentUserId, onBack, onMessagesRead }: Cha
   // Get the other participant's details
   const otherParticipant = conversation.participant1_id === currentUserId
     ? {
-        username: conversation.participant2_username,
-        avatar: conversation.participant2_avatar
-      }
+      username: conversation.participant2_username,
+      avatar: conversation.participant2_avatar
+    }
     : {
-        username: conversation.participant1_username,
-        avatar: conversation.participant1_avatar
-      };
+      username: conversation.participant1_username,
+      avatar: conversation.participant1_avatar
+    };
 
   const loadMessages = async () => {
     try {
@@ -167,21 +154,21 @@ const ChatWindow = ({ conversation, currentUserId, onBack, onMessagesRead }: Cha
       const conversationMessages = await dbService.getConversationMessages(conversation.id);
       console.log('ChatWindow: Loaded messages:', conversationMessages.length, conversationMessages);
       setMessages(conversationMessages);
-      
+
       // Get the other participant ID
-      const otherParticipantId = conversation.participant1_id === currentUserId 
-        ? conversation.participant2_id 
+      const otherParticipantId = conversation.participant1_id === currentUserId
+        ? conversation.participant2_id
         : conversation.participant1_id;
-      
+
       // Get the last seen message ID for messages sent by current user
       const lastSeen = dbService.getLastSeenMessageId(conversation.id, currentUserId);
       setLastSeenMessageId(lastSeen);
-      
+
       // Mark messages as read (messages sent by the other participant that we're now reading)
       console.log('Marking messages as read for conversation:', conversation.id, 'user:', currentUserId);
       const markedAsRead = await dbService.markMessagesAsRead(conversation.id, currentUserId);
       console.log('Messages marked as read result:', markedAsRead);
-      
+
       if (markedAsRead) {
         console.log('Emitting message_read event for conversation:', conversation.id);
         messageEventSystem.emit({
@@ -191,7 +178,7 @@ const ChatWindow = ({ conversation, currentUserId, onBack, onMessagesRead }: Cha
             timestamp: new Date().toISOString()
           }
         });
-        
+
         // Notify parent component that messages were read
         if (onMessagesRead) {
           onMessagesRead();
@@ -248,8 +235,8 @@ const ChatWindow = ({ conversation, currentUserId, onBack, onMessagesRead }: Cha
         </Button>
         <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center">
           {otherParticipant.avatar ? (
-            <img 
-              src={otherParticipant.avatar} 
+            <img
+              src={otherParticipant.avatar}
               alt={otherParticipant.username}
               className="w-8 h-8 rounded-full object-cover"
             />
@@ -277,14 +264,14 @@ const ChatWindow = ({ conversation, currentUserId, onBack, onMessagesRead }: Cha
           <div className="space-y-2">
             {messages.map((message, index) => {
               const isOwn = message.sender_id === currentUserId;
-              
+
               // Show "Seen" on the last message sent by current user if it has been read
               const isLastOwnMessage = isOwn && (
-                index === messages.length - 1 || 
+                index === messages.length - 1 ||
                 messages[index + 1]?.sender_id !== currentUserId
               );
               const showSeen = isOwn && isLastOwnMessage && lastSeenMessageId && message.id <= lastSeenMessageId;
-              
+
               return (
                 <MessageBubble
                   key={message.id}
@@ -313,13 +300,13 @@ interface ConversationItemProps {
 const ConversationItem = ({ conversation, currentUserId, onClick }: ConversationItemProps) => {
   const otherParticipant = conversation.participant1_id === currentUserId
     ? {
-        username: conversation.participant2_username,
-        avatar: conversation.participant2_avatar
-      }
+      username: conversation.participant2_username,
+      avatar: conversation.participant2_avatar
+    }
     : {
-        username: conversation.participant1_username,
-        avatar: conversation.participant1_avatar
-      };
+      username: conversation.participant1_username,
+      avatar: conversation.participant1_avatar
+    };
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -328,10 +315,10 @@ const ConversationItem = ({ conversation, currentUserId, onClick }: Conversation
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
-      return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
       });
     } else if (diffDays === 1) {
       return 'Yesterday';
@@ -343,15 +330,15 @@ const ConversationItem = ({ conversation, currentUserId, onClick }: Conversation
   };
 
   return (
-    <Card 
+    <Card
       className="p-4 cursor-pointer hover:bg-gray-50 transition-colors border-0 border-b"
       onClick={onClick}
     >
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center">
           {otherParticipant.avatar ? (
-            <img 
-              src={otherParticipant.avatar} 
+            <img
+              src={otherParticipant.avatar}
               alt={otherParticipant.username}
               className="w-12 h-12 rounded-full object-cover"
             />
@@ -361,7 +348,7 @@ const ConversationItem = ({ conversation, currentUserId, onClick }: Conversation
             </span>
           )}
         </div>
-        
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900 truncate">
@@ -371,7 +358,7 @@ const ConversationItem = ({ conversation, currentUserId, onClick }: Conversation
               {formatTime(conversation.last_message_at)}
             </span>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-600 truncate">
               {conversation.last_message_content || 'Start a conversation'}
@@ -380,12 +367,12 @@ const ConversationItem = ({ conversation, currentUserId, onClick }: Conversation
               console.log(`ConversationItem: ${otherParticipant.username} unread_count: ${conversation.unread_count} (type: ${typeof conversation.unread_count})`);
               return conversation.unread_count > 0;
             })() && (
-              <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-xs text-white font-semibold">
-                  {conversation.unread_count > 9 ? '9+' : conversation.unread_count}
-                </span>
-              </div>
-            )}
+                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs text-white font-semibold">
+                    {conversation.unread_count > 9 ? '9+' : conversation.unread_count}
+                  </span>
+                </div>
+              )}
           </div>
         </div>
       </div>
@@ -415,11 +402,11 @@ const NewChatModal = ({ isOpen, onClose, onUserSelect }: NewChatModalProps) => {
           const allUsers = await dbService.getAllUsers();
           console.log('All users in database:', allUsers);
           console.log('Current user:', currentUser);
-          
-          const filteredUsers = allUsers.filter(user => 
+
+          const filteredUsers = allUsers.filter(user =>
             user.id !== currentUser?.id &&
             (user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             user.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
+              user.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
           );
           console.log('Filtered users for search:', filteredUsers);
           setUsers(filteredUsers);
@@ -432,7 +419,7 @@ const NewChatModal = ({ isOpen, onClose, onUserSelect }: NewChatModalProps) => {
         setUsers([]);
       }
     };
-    
+
     searchUsers();
   }, [searchTerm, isOpen, currentUser?.id]);
 
@@ -456,7 +443,7 @@ const NewChatModal = ({ isOpen, onClose, onUserSelect }: NewChatModalProps) => {
             />
           </div>
         </div>
-        
+
         <div className="overflow-y-auto max-h-96">
           {loading ? (
             <div className="p-4 text-center text-gray-500">Searching...</div>
@@ -477,8 +464,8 @@ const NewChatModal = ({ isOpen, onClose, onUserSelect }: NewChatModalProps) => {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center">
                     {user.avatar ? (
-                      <img 
-                        src={user.avatar} 
+                      <img
+                        src={user.avatar}
                         alt={user.username}
                         className="w-10 h-10 rounded-full object-cover"
                       />
@@ -521,15 +508,15 @@ const Messages = () => {
 
     try {
       console.log('Loading conversations for user:', currentUser.id, currentUser.username);
-      const userConversations = searchTerm 
+      const userConversations = searchTerm
         ? await dbService.searchConversations(currentUser.id, searchTerm)
         : await dbService.getUserConversations(currentUser.id);
-      
+
       console.log('User conversations loaded:', userConversations.length);
       userConversations.forEach(conv => {
         console.log(`Conversation ${conv.id}: unread_count = ${conv.unread_count}, other participant: ${conv.participant1_id === currentUser.id ? conv.participant2_username : conv.participant1_username}`);
       });
-      
+
       // Debug: Check messages in each conversation
       for (const conv of userConversations) {
         const messages = await dbService.getConversationMessages(conv.id);
@@ -539,7 +526,7 @@ const Messages = () => {
           console.log(`  - Unread message ${msg.id}: "${msg.content}" from sender ${msg.sender_id}, is_read: ${msg.is_read}`);
         });
       }
-      
+
       setConversations(userConversations);
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -555,7 +542,7 @@ const Messages = () => {
     }
 
     loadConversations();
-    
+
     // Check if there's a conversation ID in the URL
     const conversationId = searchParams.get('conversation');
     if (conversationId) {
@@ -603,7 +590,7 @@ const Messages = () => {
     try {
       // Try to find existing conversation or create new one
       let conversation = await dbService.getConversationBetweenUsers(currentUser.id, user.id);
-      
+
       if (!conversation) {
         conversation = await dbService.createConversation({
           participant1_id: currentUser.id,
@@ -614,11 +601,11 @@ const Messages = () => {
       if (conversation) {
         // Reload conversations to get the updated list
         await loadConversations();
-        
+
         // Select the conversation
         const conversationWithUsers = (await dbService.getUserConversations(currentUser.id))
           .find(c => c.id === conversation!.id);
-        
+
         if (conversationWithUsers) {
           handleConversationSelect(conversationWithUsers);
         }
@@ -644,9 +631,9 @@ const Messages = () => {
         {/* Header */}
         <div className="border-b bg-white p-4">
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate('/')}
               className="p-2"
             >
@@ -655,7 +642,7 @@ const Messages = () => {
             <h1 className="text-xl font-bold">Messages</h1>
           </div>
         </div>
-        
+
         {/* Login Required Message */}
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center">
@@ -666,7 +653,7 @@ const Messages = () => {
             </p>
           </div>
         </div>
-        
+
         {showLoginOverlay && (
           <LoginOverlay
             onClose={() => setShowLoginOverlay(false)}
@@ -698,9 +685,9 @@ const Messages = () => {
       <div className="border-b bg-white p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate('/')}
               className="p-2"
             >
@@ -729,7 +716,7 @@ const Messages = () => {
             </Button>
           </div>
         </div>
-        
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -778,7 +765,7 @@ const Messages = () => {
         onClose={() => setShowNewChatModal(false)}
         onUserSelect={handleNewUserSelect}
       />
-      
+
       {showLoginOverlay && (
         <LoginOverlay
           onClose={() => setShowLoginOverlay(false)}

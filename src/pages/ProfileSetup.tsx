@@ -7,14 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Camera, AlertCircle, Check, X } from "lucide-react";
-import { dbService, sessionManager } from "@/database";
+import { dbService } from "@/database";
+import { sessionManager } from "@/lib/session";
 import { useNavigate } from "react-router-dom";
 import ImageCropModal from "@/components/ImageCropModal";
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
   const currentUser = sessionManager.getCurrentUser();
-  
+
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState(currentUser?.displayName || "");
   const [bio, setBio] = useState(currentUser?.bio || "");
@@ -36,7 +37,7 @@ const ProfileSetup = () => {
     }
 
     const usernamePattern = /^[a-z0-9._]+$/;
-    
+
     if (value.length < 3) {
       setUsernameError("Username must be at least 3 characters long");
       setUsernameAvailable(false);
@@ -96,7 +97,7 @@ const ProfileSetup = () => {
       console.error("No current user found");
       return;
     }
-    
+
     setLoading(true);
     try {
       console.log("Updating profile for user:", currentUser.id);
@@ -108,29 +109,29 @@ const ProfileSetup = () => {
         semester,
         department
       });
-      
+
       console.log("Update result:", updateResult);
-      
+
       if (updateResult.success) {
         const setupResult = dbService.completeProfileSetup(currentUser.id);
         console.log("Setup completion result:", setupResult);
-        
+
         if (setupResult.success) {
           const updatedUser = await dbService.getUserById(currentUser.id);
           console.log("Updated user:", updatedUser);
-          
+
           if (updatedUser) {
             // Update session with completed profile
             sessionManager.login(updatedUser);
-            
+
             // Clear the new signup flag since profile setup is now complete
             sessionStorage.removeItem('newSignup');
-            
+
             // Clear any auth view state that might redirect back to signup
             localStorage.setItem('cgu_auth_view', 'feed');
             localStorage.removeItem('authState');
             localStorage.removeItem('authMode');
-            
+
             // Force navigation to feed
             window.location.href = '/';
           }
@@ -189,9 +190,9 @@ const ProfileSetup = () => {
               minLength={3}
               maxLength={20}
               className={
-                usernameError || usernameAvailable === false 
-                  ? "border-red-500 focus:border-red-500" 
-                  : usernameAvailable === true 
+                usernameError || usernameAvailable === false
+                  ? "border-red-500 focus:border-red-500"
+                  : usernameAvailable === true
                     ? "border-green-500 focus:border-green-500"
                     : ""
               }
@@ -291,7 +292,7 @@ const ProfileSetup = () => {
           </Button>
         </div>
       </div>
-      
+
       <ImageCropModal
         isOpen={showCropModal}
         onClose={() => setShowCropModal(false)}

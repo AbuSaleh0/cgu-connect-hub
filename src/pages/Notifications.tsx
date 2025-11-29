@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Heart, MessageCircle, UserPlus } from "lucide-react";
-import { dbService, sessionManager } from "@/database";
+import { dbService } from "@/database";
+import { sessionManager } from "@/lib/session";
 import { Notification, User } from "@/database/types";
 import MobileBottomNav from "@/components/MobileBottomNav";
 
@@ -28,7 +29,7 @@ const Notifications = () => {
       try {
         const userNotifications = await dbService.getUserNotifications(currentUser.id);
         setNotifications(userNotifications);
-        
+
         // Load from users for each notification
         const users: { [key: number]: User } = {};
         for (const notification of userNotifications) {
@@ -42,7 +43,7 @@ const Notifications = () => {
           }
         }
         setFromUsers(users);
-        
+
         // Mark notifications as read
         await dbService.markNotificationsAsRead(currentUser.id);
       } catch (error) {

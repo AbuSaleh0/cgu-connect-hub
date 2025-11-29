@@ -6,12 +6,13 @@ import PostCard from "@/components/PostCard";
 import LoginOverlay from "@/components/LoginOverlay";
 import AuthPage from "@/components/AuthPage";
 import { Button } from "@/components/ui/button";
-import { dbService, sessionManager } from "@/database";
+import { dbService } from "@/database";
+import { sessionManager } from "@/lib/session";
 import { convertDbPostToCardData, PostCardData } from "@/database/utils";
 
 const Index = () => {
   const navigate = useNavigate();
-  
+
   // Load persisted auth view state on mount
   const loadAuthView = (): "feed" | "login" | "signup" => {
     try {
@@ -64,20 +65,20 @@ const Index = () => {
 
   const loadPosts = (() => {
     let isLoading = false;
-    
+
     return async () => {
       if (isLoading) {
         console.log('Posts already loading, skipping...');
         return;
       }
-      
+
       try {
         isLoading = true;
         console.log('Loading posts from database...');
         const dbPosts = await dbService.getAllPosts();
         console.log('Posts from database:', dbPosts.length);
         console.log('Post IDs:', dbPosts.map(p => p.id));
-        
+
         // Remove duplicates by ID using Map
         const uniquePostsMap = new Map();
         dbPosts.forEach(post => {
@@ -85,14 +86,14 @@ const Index = () => {
             uniquePostsMap.set(post.id, post);
           }
         });
-        
+
         const uniquePosts = Array.from(uniquePostsMap.values());
         console.log('Unique posts after deduplication:', uniquePosts.length);
-        
-        const formattedPosts = uniquePosts.map(post => 
+
+        const formattedPosts = uniquePosts.map(post =>
           convertDbPostToCardData(post, dbService.formatTimestamp)
         );
-        
+
         setPosts(formattedPosts);
         console.log('Posts set in state:', formattedPosts.length);
       } catch (error) {
@@ -113,28 +114,28 @@ const Index = () => {
           alert('Post created successfully!');
           sessionStorage.removeItem('postCreated');
         }
-        
+
         console.log('Checking authentication...');
         // Check authentication status
         const loggedIn = sessionManager.isLoggedIn();
         setIsAuthenticated(loggedIn);
         const currentUser = sessionManager.getCurrentUser();
         setUser(currentUser);
-        
+
         // Only redirect to profile setup if it's a new signup and profile is incomplete
         const isNewSignup = sessionStorage.getItem('newSignup') === 'true';
         if (loggedIn && currentUser && !currentUser.profileSetupComplete && isNewSignup) {
           navigate('/profile-setup');
           return;
         }
-        
+
         // Clear the new signup flag if user is authenticated
         if (loggedIn) {
           sessionStorage.removeItem('newSignup');
         }
 
         console.log('Initializing database...');
-        
+
         try {
           // Try to initialize SQLite database first
           await dbService.initialize();
@@ -144,7 +145,7 @@ const Index = () => {
           console.log('App will continue with limited functionality');
           // Don't throw - let the app continue
         }
-        
+
         console.log('Loading posts...');
         // Load posts
         await loadPosts();
@@ -176,7 +177,7 @@ const Index = () => {
   useEffect(() => {
     let lastFocusTime = 0;
     const FOCUS_DEBOUNCE = 2000; // 2 seconds
-    
+
     const handleFocus = () => {
       const now = Date.now();
       if (isAuthenticated && (now - lastFocusTime) > FOCUS_DEBOUNCE) {
@@ -280,8 +281,8 @@ const Index = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header 
-          onLoginClick={handleLoginClick} 
+        <Header
+          onLoginClick={handleLoginClick}
           onSignUpClick={handleSignUpClick}
           onExploreClick={() => handleNavClick('Search')}
           onMessagesClick={() => handleNavClick('Messages')}
@@ -308,8 +309,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header 
-        onLoginClick={handleLoginClick} 
+      <Header
+        onLoginClick={handleLoginClick}
         onSignUpClick={handleSignUpClick}
         onExploreClick={() => handleNavClick('Search')}
         onMessagesClick={() => handleNavClick('Messages')}
@@ -319,7 +320,7 @@ const Index = () => {
         currentUser={user}
         onLogout={handleLogout}
       />
-      
+
       <main className="container max-w-2xl mx-auto py-8 px-4 pb-20 md:pb-8">
         <div className="space-y-6">
           {posts.length > 0 ? (

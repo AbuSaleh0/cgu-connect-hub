@@ -34,6 +34,18 @@ import {
 
 class DatabaseService {
 
+    // ===== COMPATIBILITY METHODS =====
+
+    async initialize(): Promise<void> {
+        // No-op for Supabase
+        return Promise.resolve();
+    }
+
+    formatTimestamp(dateString: string): string {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+
     // ===== USER OPERATIONS =====
 
     async createUser(userData: CreateUserData): Promise<User> {
