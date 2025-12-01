@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,14 +22,14 @@ interface ChangeUsernameModalProps {
   onUsernameUpdated: (newUsername: string) => void;
 }
 
-const ChangeUsernameModal = ({ 
-  isOpen, 
-  onClose, 
-  currentUser, 
-  onUsernameUpdated 
+const ChangeUsernameModal = ({
+  isOpen,
+  onClose,
+  currentUser,
+  onUsernameUpdated
 }: ChangeUsernameModalProps) => {
   console.log('ChangeUsernameModal props:', { isOpen, currentUser: currentUser?.username });
-  
+
   const [newUsername, setNewUsername] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -49,7 +49,7 @@ const ChangeUsernameModal = ({
     if (!username.trim()) {
       return "Username is required";
     }
-    
+
     if (username.length < 3 || username.length > 20) {
       return "Username must be between 3 and 20 characters";
     }
@@ -62,7 +62,7 @@ const ChangeUsernameModal = ({
     return null;
   };
 
-  const checkUsernameAvailability = (username: string) => {
+  const checkUsernameAvailability = async (username: string) => {
     if (username === currentUser.username) {
       setIsAvailable(true);
       return;
@@ -70,9 +70,9 @@ const ChangeUsernameModal = ({
 
     setIsChecking(true);
     setError("");
-    
+
     try {
-      const existingUser = dbService.getUserByUsername(username);
+      const existingUser = await dbService.getUserByUsername(username);
       setIsAvailable(!existingUser);
       if (existingUser) {
         setError("This username is already taken");
@@ -117,10 +117,10 @@ const ChangeUsernameModal = ({
     return () => clearTimeout(timeoutId);
   }, [newUsername, currentUser.username]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted with username:', newUsername);
-    
+
     const validationError = validateUsername(newUsername);
     if (validationError) {
       setError(validationError);
@@ -142,7 +142,7 @@ const ChangeUsernameModal = ({
 
     try {
       console.log('Attempting to update username from', currentUser.username, 'to', newUsername);
-      const success = dbService.updateUsername(currentUser.id, newUsername);
+      const success = await dbService.updateUsername(currentUser.id, newUsername);
       console.log('Update result:', success);
       if (success) {
         console.log('Username update successful, calling onUsernameUpdated');
@@ -161,12 +161,12 @@ const ChangeUsernameModal = ({
   };
 
   const isFormValid = newUsername.trim() && !error && isAvailable && !isChecking;
-  console.log('Form validation:', { 
-    newUsername: newUsername.trim(), 
-    hasError: !!error, 
-    isAvailable, 
-    isChecking, 
-    isFormValid 
+  console.log('Form validation:', {
+    newUsername: newUsername.trim(),
+    hasError: !!error,
+    isAvailable,
+    isChecking,
+    isFormValid
   });
 
   return (
@@ -193,7 +193,7 @@ const ChangeUsernameModal = ({
                   placeholder="Enter new username"
                   disabled={isUpdating}
                 />
-                
+
                 {isChecking && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -222,8 +222,8 @@ const ChangeUsernameModal = ({
             <Button type="button" variant="outline" onClick={onClose} disabled={isUpdating}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={!isFormValid || isUpdating}
             >
               {isUpdating ? (

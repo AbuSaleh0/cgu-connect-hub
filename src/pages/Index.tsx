@@ -122,9 +122,8 @@ const Index = () => {
         const currentUser = sessionManager.getCurrentUser();
         setUser(currentUser);
 
-        // Only redirect to profile setup if it's a new signup and profile is incomplete
-        const isNewSignup = sessionStorage.getItem('newSignup') === 'true';
-        if (loggedIn && currentUser && !currentUser.profileSetupComplete && isNewSignup) {
+        // Redirect to profile setup if profile is incomplete
+        if (loggedIn && currentUser && !currentUser.profileSetupComplete) {
           navigate('/profile-setup');
           return;
         }
@@ -132,6 +131,7 @@ const Index = () => {
         // Clear the new signup flag if user is authenticated
         if (loggedIn) {
           sessionStorage.removeItem('newSignup');
+          setAuthView("feed"); // Force feed view if logged in
         }
 
         console.log('Initializing database...');
@@ -171,6 +171,21 @@ const Index = () => {
     return () => {
       clearTimeout(timeoutId);
     };
+  }, []);
+
+  // Listen for storage events (login/logout)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const loggedIn = sessionManager.isLoggedIn();
+      setIsAuthenticated(loggedIn);
+      setUser(sessionManager.getCurrentUser());
+      if (loggedIn) {
+        setAuthView("feed");
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   // Refresh posts when component becomes visible (with debounce)

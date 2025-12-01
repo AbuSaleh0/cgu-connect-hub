@@ -22,6 +22,8 @@ const ProfileSetup = () => {
   const [avatar, setAvatar] = useState("");
   const [semester, setSemester] = useState(currentUser?.semester || "");
   const [department, setDepartment] = useState(currentUser?.department || "");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [usernameError, setUsernameError] = useState("");
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -109,6 +111,15 @@ const ProfileSetup = () => {
         semester,
         department
       });
+
+      if (!currentUser.passwordSetupComplete && password) {
+        if (password !== confirmPassword) {
+          alert("Passwords do not match");
+          setLoading(false);
+          return;
+        }
+        await dbService.updatePassword(currentUser.id, password);
+      }
 
       console.log("Update result:", updateResult);
 
@@ -283,6 +294,39 @@ const ProfileSetup = () => {
             </div>
           </div>
 
+          {!currentUser?.passwordSetupComplete && (
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="font-medium">Create Password</h3>
+              <p className="text-sm text-muted-foreground">Set a password to log in with your email later.</p>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Create a password"
+                  minLength={6}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your password"
+                />
+                {password && confirmPassword && password !== confirmPassword && (
+                  <p className="text-xs text-red-500">Passwords do not match</p>
+                )}
+              </div>
+            </div>
+          )}
+
           <Button
             onClick={handleComplete}
             className="w-full"
@@ -299,7 +343,7 @@ const ProfileSetup = () => {
         imageSrc={tempImageSrc}
         onCropComplete={handleCropComplete}
       />
-    </div>
+    </div >
   );
 };
 
