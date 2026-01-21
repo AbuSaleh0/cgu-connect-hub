@@ -44,15 +44,9 @@ const PasswordSetup = () => {
           sessionManager.login(updatedUser);
         }
 
-        // Check if profile setup is needed
-        if (!updatedUser?.profileSetupComplete) {
-          // Keep the new signup flag since user is still in signup flow
-          navigate("/profile-setup");
-        } else {
-          // User has completed setup, clear the flag
-          sessionStorage.removeItem('newSignup');
-          navigate("/");
-        }
+        // User has completed setup, clear the flag
+        sessionStorage.removeItem('newSignup');
+        navigate("/");
       } else {
         setError(result.error || "Failed to setup password");
       }
@@ -70,9 +64,9 @@ const PasswordSetup = () => {
     <div className="min-h-screen flex items-center justify-center p-8 bg-background">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Setup Your Password</h1>
+          <h1 className="text-3xl font-bold">Create Your Password</h1>
           <p className="text-muted-foreground">
-            Create a password to login with email next time
+            Set up a password to access your account. You'll use this with your email to login.
           </p>
         </div>
 

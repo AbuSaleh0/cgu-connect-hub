@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
-import ProfileSetup from "./pages/ProfileSetup";
 import PasswordSetup from "./pages/PasswordSetup";
 import CreatePost from "./pages/CreatePost";
 import Search from "./pages/Search";
@@ -17,12 +16,11 @@ import NotFound from "./pages/NotFound";
 
 import { supabase } from "@/lib/supabase";
 import { dbService } from "@/database/service";
-import { sessionManager } from "@/lib/session"; // Ensure this import exists
+import { sessionManager } from "@/lib/session";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  // --- THIS IS THE MISSING PIECE ---
   useEffect(() => {
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -46,12 +44,28 @@ const App = () => {
     try {
       // Sync user to DB and update local session
       console.log("App: Syncing user...");
-      const user = await dbService.syncUserWithSupabase();
+      const { user, isNew } = await dbService.syncUserWithSupabase();
       console.log("App: Sync result:", user);
 
       if (user) {
         console.log("App: Login successful, updating session manager");
         sessionManager.login(user);
+
+        // Check if user needs to setup password (OAuth users)
+        if (!user.password || user.password_setup_complete === false) {
+          console.log("App: User needs to setup password, redirecting...");
+          window.location.href = '/password-setup';
+          return;
+        }
+
+
+
+
+
+
+
+
+
         // Remove the ugly hash from URL
         if (window.location.hash) {
           window.history.replaceState(null, '', window.location.pathname);
@@ -77,7 +91,6 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/password-setup" element={<PasswordSetup />} />
-            <Route path="/profile-setup" element={<ProfileSetup />} />
             <Route path="/create" element={<CreatePost />} />
             <Route path="/search" element={<Search />} />
             <Route path="/notifications" element={<Notifications />} />

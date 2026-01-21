@@ -1,5 +1,5 @@
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, FC } from "react";
 import { useNavigate } from "react-router-dom";
 import CommentModal from "./CommentModal";
 import ShareModal from "./ShareModal";
@@ -24,7 +24,7 @@ interface PostCardProps {
   currentUser?: { id: number; username: string; } | null;
 }
 
-const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: PostCardProps) => {
+const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated, currentUser }) => {
   const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);
@@ -56,11 +56,11 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
       onInteractionClick(); // Show login overlay
       return;
     }
-    
+
     // Handle actual like functionality for authenticated users
     setIsLiked(!isLiked);
     setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
-    
+
     // Here you would typically call an API or database function
     console.log(`${isLiked ? 'Unliked' : 'Liked'} post ${post.id} by ${currentUser?.username}`);
   };
@@ -70,7 +70,7 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
       onInteractionClick(); // Show login overlay
       return;
     }
-    
+
     // Open comment modal for authenticated users
     setShowCommentModal(true);
   };
@@ -80,26 +80,26 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
       onInteractionClick(); // Show login overlay
       return;
     }
-    
+
     // Open share modal for authenticated users
     setShowShareModal(true);
   };
 
-  const handleBookmark = () => {
+  const handleBookmark = async () => {
     if (!isAuthenticated) {
       onInteractionClick(); // Show login overlay
       return;
     }
-    
+
     if (!currentUser) return;
-    
+
     // Handle save/unsave functionality
     try {
-      const newSaveState = dbService.toggleSavePost({
+      const newSaveState = await dbService.toggleSavePost({
         user_id: currentUser.id,
         post_id: Number(post.id)
       });
-      
+
       setIsSaved(newSaveState);
       console.log(`${newSaveState ? 'Saved' : 'Unsaved'} post ${post.id}`);
     } catch (error) {
@@ -114,7 +114,7 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full gradient-primary" />
           <div>
-            <button 
+            <button
               onClick={handleUsernameClick}
               className="font-semibold text-sm hover:text-gray-600 transition-colors text-left"
             >
@@ -123,7 +123,7 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
             <p className="text-xs text-muted-foreground">{post.timestamp}</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={() => setShowOptionsModal(true)}
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
@@ -146,33 +146,30 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
           <div className="flex items-center gap-4">
             <button
               onClick={handleLike}
-              className={`transition-colors ${
-                isAuthenticated 
-                  ? 'text-foreground hover:text-destructive cursor-pointer' 
-                  : 'text-muted-foreground hover:text-foreground cursor-pointer'
-              }`}
+              className={`transition-colors ${isAuthenticated
+                ? 'text-foreground hover:text-destructive cursor-pointer'
+                : 'text-muted-foreground hover:text-foreground cursor-pointer'
+                }`}
               title={isAuthenticated ? 'Like this post' : 'Login to like'}
             >
               <Heart className={`h-6 w-6 ${isLiked ? 'fill-destructive text-destructive' : ''}`} />
             </button>
             <button
               onClick={handleComment}
-              className={`transition-colors ${
-                isAuthenticated 
-                  ? 'text-foreground hover:text-accent cursor-pointer' 
-                  : 'text-muted-foreground hover:text-foreground cursor-pointer'
-              }`}
+              className={`transition-colors ${isAuthenticated
+                ? 'text-foreground hover:text-accent cursor-pointer'
+                : 'text-muted-foreground hover:text-foreground cursor-pointer'
+                }`}
               title={isAuthenticated ? 'Comment on this post' : 'Login to comment'}
             >
               <MessageCircle className="h-6 w-6" />
             </button>
             <button
               onClick={handleShare}
-              className={`transition-colors ${
-                isAuthenticated 
-                  ? 'text-foreground hover:text-accent cursor-pointer' 
-                  : 'text-muted-foreground hover:text-foreground cursor-pointer'
-              }`}
+              className={`transition-colors ${isAuthenticated
+                ? 'text-foreground hover:text-accent cursor-pointer'
+                : 'text-muted-foreground hover:text-foreground cursor-pointer'
+                }`}
               title={isAuthenticated ? 'Share this post' : 'Login to share'}
             >
               <Send className="h-6 w-6" />
@@ -180,11 +177,10 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
           </div>
           <button
             onClick={handleBookmark}
-            className={`transition-colors ${
-              isAuthenticated 
-                ? 'text-foreground hover:text-accent cursor-pointer' 
-                : 'text-muted-foreground hover:text-foreground cursor-pointer'
-            }`}
+            className={`transition-colors ${isAuthenticated
+              ? 'text-foreground hover:text-accent cursor-pointer'
+              : 'text-muted-foreground hover:text-foreground cursor-pointer'
+              }`}
             title={isAuthenticated ? 'Bookmark this post' : 'Login to bookmark'}
           >
             <Bookmark className={`h-6 w-6 ${isSaved ? 'fill-current' : ''}`} />
@@ -197,7 +193,7 @@ const PostCard = ({ post, onInteractionClick, isAuthenticated, currentUser }: Po
 
         <div>
           <p className="text-sm">
-            <button 
+            <button
               onClick={handleUsernameClick}
               className="font-semibold mr-2 hover:text-gray-600 transition-colors"
             >

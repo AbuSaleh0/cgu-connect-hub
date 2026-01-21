@@ -37,11 +37,7 @@ const Index = () => {
     const currentUser = sessionManager.getCurrentUser();
     return savedAuthState === 'true' && !currentUser;
   });
-  const [authMode, setAuthMode] = useState<"login" | "signup">(() => {
-    // Restore auth mode from localStorage
-    const savedAuthMode = localStorage.getItem('authMode');
-    return (savedAuthMode as "login" | "signup") || "login";
-  });
+
   const [user, setUser] = useState(sessionManager.getCurrentUser());
 
   // Save auth state to localStorage whenever it changes
@@ -49,10 +45,7 @@ const Index = () => {
     localStorage.setItem('authState', showAuth.toString());
   }, [showAuth]);
 
-  // Save auth mode to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('authMode', authMode);
-  }, [authMode]);
+
 
   // Persist auth view whenever it changes
   useEffect(() => {
@@ -62,6 +55,14 @@ const Index = () => {
       console.error('Error persisting auth view:', error);
     }
   }, [authView]);
+
+  // Check if user needs password setup
+  useEffect(() => {
+    if (user && (!user.password || user.password_setup_complete === false)) {
+      console.log("Index: User needs password setup, redirecting...");
+      navigate('/password-setup');
+    }
+  }, [user, navigate]);
 
   const loadPosts = (() => {
     let isLoading = false;
@@ -122,11 +123,7 @@ const Index = () => {
         const currentUser = sessionManager.getCurrentUser();
         setUser(currentUser);
 
-        // Redirect to profile setup if profile is incomplete
-        if (loggedIn && currentUser && !currentUser.profileSetupComplete) {
-          navigate('/profile-setup');
-          return;
-        }
+
 
         // Clear the new signup flag if user is authenticated
         if (loggedIn) {
@@ -247,7 +244,7 @@ const Index = () => {
     setAuthView("feed");
     // Clear auth state from localStorage on successful authentication
     localStorage.removeItem('authState');
-    localStorage.removeItem('authMode');
+
     // Clear auth view persistence when successfully authenticated
     try {
       localStorage.setItem('cgu_auth_view', 'feed');

@@ -26,6 +26,9 @@ const AuthPage = ({ mode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) 
     setLoading(true);
     setError("");
     try {
+
+
+
       // Direct Supabase Call (No extra libraries)
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

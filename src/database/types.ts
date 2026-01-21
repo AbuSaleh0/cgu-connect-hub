@@ -4,12 +4,12 @@ export interface User {
   email: string;
   password?: string;
   avatar?: string;
-  displayName: string;
+  display_name: string;
   bio: string;
   semester: string;
   department: string;
-  profileSetupComplete: boolean;
-  passwordSetupComplete: boolean;
+
+  password_setup_complete: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -19,12 +19,12 @@ export interface UserPublic {
   username: string;
   email: string;
   avatar?: string;
-  displayName: string;
+  display_name: string;
   bio: string;
   semester: string;
   department: string;
-  profileSetupComplete: boolean;
-  passwordSetupComplete: boolean;
+
+  password_setup_complete: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -73,12 +73,12 @@ export interface CreateUserData {
   email: string;
   password: string;
   avatar?: string;
-  displayName?: string;
+  display_name?: string;
   bio?: string;
   semester?: string;
   department?: string;
-  profileSetupComplete?: boolean;
-  passwordSetupComplete?: boolean;
+
+  password_setup_complete?: boolean;
 }
 
 export interface LoginData {
@@ -123,6 +123,8 @@ export interface CreateOTPData {
   email: string;
   code: string;
   expires_at: string;
+  used: boolean;
+  created_at: string;
 }
 
 export interface VerifyOTPData {
@@ -140,7 +142,7 @@ export interface GoogleUserData {
 
 export interface UpdateProfileData {
   username?: string;
-  displayName?: string;
+  display_name?: string;
   bio?: string;
   avatar?: string;
   semester?: string;
