@@ -56,13 +56,7 @@ const Index = () => {
     }
   }, [authView]);
 
-  // Check if user needs password setup
-  useEffect(() => {
-    if (user && (!user.password || user.password_setup_complete === false)) {
-      console.log("Index: User needs password setup, redirecting...");
-      navigate('/password-setup');
-    }
-  }, [user, navigate]);
+
 
   const loadPosts = (() => {
     let isLoading = false;

@@ -7,7 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
-import PasswordSetup from "./pages/PasswordSetup";
+import ProfileSetup from "./pages/ProfileSetup";
+
 import CreatePost from "./pages/CreatePost";
 import Search from "./pages/Search";
 import Notifications from "./pages/Notifications";
@@ -51,10 +52,10 @@ const App = () => {
         console.log("App: Login successful, updating session manager");
         sessionManager.login(user);
 
-        // Check if user needs to setup password (OAuth users)
-        if (!user.password || user.password_setup_complete === false) {
-          console.log("App: User needs to setup password, redirecting...");
-          window.location.href = '/password-setup';
+        // Check if user needs to set up profile
+        if (!user.profile_setup_complete) {
+          console.log("App: User needs profile setup, redirecting...");
+          window.location.href = '/profile-setup';
           return;
         }
 
@@ -90,7 +91,7 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/password-setup" element={<PasswordSetup />} />
+            <Route path="/profile-setup" element={<ProfileSetup />} />
             <Route path="/create" element={<CreatePost />} />
             <Route path="/search" element={<Search />} />
             <Route path="/notifications" element={<Notifications />} />

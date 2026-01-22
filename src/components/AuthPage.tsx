@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, Mail, Lock, User, KeyRound } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { supabase } from "@/lib/supabase"; // Use Supabase directly
+import { supabase } from "@/lib/supabase";
 import { dbService } from "@/database/service";
 import { sessionManager } from "@/lib/session";
 import heroBg from "@/assets/hero-bg.png";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 interface AuthPageProps {
   mode: "login" | "signup";
@@ -16,100 +17,345 @@ interface AuthPageProps {
   onAuthSuccess: () => void;
 }
 
-const AuthPage = ({ mode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) => {
+const AuthPage = ({ mode: initialMode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) => {
+  const [internalMode, setInternalMode] = useState<"login" | "signup" | "verify">(initialMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Form Data
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState(""); // For Login (can be email or username)
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError("");
-    try {
-
-
-
-      // Direct Supabase Call (No extra libraries)
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-            hd: 'cgu-odisha.ac.in'
-          },
-        },
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      console.error('Google auth error:', error);
-      setError(error.message || "Failed to authenticate.");
-      setLoading(false);
-    }
-  };
-
-  const handleTraditionalLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setLoading(true);
+
     try {
-      const result = await dbService.login({ email, password });
-      if (result.success && result.user) {
-        sessionManager.login(result.user);
-        sessionStorage.removeItem('newSignup');
-        onAuthSuccess();
-      } else {
-        setError(result.error || "Login failed");
+      // 1. Validation
+      if (!email.endsWith("@cgu-odisha.ac.in")) {
+        throw new Error("Only @cgu-odisha.ac.in emails are allowed.");
       }
-    } catch (error) {
-      setError("An unexpected error occurred");
+      if (password.length < 6) {
+        throw new Error("Password must be at least 6 characters.");
+      }
+      if (password !== confirmPassword) {
+        throw new Error("Passwords do not match.");
+      }
+
+      // 2. Supabase Signup (Triggers OTP Email)
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          // We can pass metadata, but our SQL trigger handles the profile creation primarily.
+          // However, passing data here is good for redundant safety.
+          data: {
+            full_name: email.split('@')[0],
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      // 3. Switch to Verify Mode
+      if (data.user && !data.session) {
+        setInternalMode("verify");
+      } else if (data.session) {
+        // If auto-confirmed (shouldn't happen with email enabled, but just in case)
+        handleLoginSuccess(data.session.user);
+      }
+
+    } catch (err: any) {
+      console.error("Signup error object:", err);
+      let errorMessage = "Signup failed.";
+
+      if (typeof err === "string") {
+        errorMessage = err;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err && typeof err === "object") {
+        // Try to stringify if it's an object without message
+        errorMessage = JSON.stringify(err);
+        if (errorMessage === "{}") errorMessage = "Unknown error occurred (Empty error object).";
+      }
+
+      if (errorMessage.includes("rate limit") || errorMessage.includes("confirmation email")) {
+        setError("Email limit reached. excessive signups or Supabase limit. Try again later or check SMTP settings.");
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'signup'
+      });
+
+      if (verifyError) throw verifyError;
+
+      if (data.session) {
+        await handleLoginSuccess(data.session.user);
+      }
+    } catch (err: any) {
+      setError(err.message || "Invalid OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      let loginEmail = username; // Default assume it's email
+
+      // If input doesn't look like email, treat as username and resolve it
+      if (!username.includes("@")) {
+        const resolvedEmail = await dbService.getEmailByUsername(username);
+        if (!resolvedEmail) {
+          throw new Error("Username not found.");
+        }
+        loginEmail = resolvedEmail;
+      }
+
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password
+      });
+
+      if (signInError) throw signInError;
+
+      if (data.session) {
+        await handleLoginSuccess(data.session.user);
+      }
+
+    } catch (err: any) {
+      setError(err.message || "Login failed check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoginSuccess = async (authUser: any) => {
+    // Sync user profile
+    const { user } = await dbService.syncUserWithSupabase();
+
+    if (user) {
+      sessionManager.login(user);
+
+      // Check if profile setup is needed (New Signups)
+      if (!user.profile_setup_complete) {
+        window.location.href = "/profile-setup";
+      } else {
+        onAuthSuccess();
+      }
+    } else {
+      setError("Failed to load user profile.");
+    }
+  };
+
   return (
     <div className="min-h-screen flex">
+      {/* Left Panel */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md space-y-8">
-          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8">
             <ArrowLeft className="h-4 w-4" /> Back to feed
           </button>
+
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-gradient">CGU Connect</h1>
-            <h2 className="text-3xl font-bold">{mode === "login" ? "Welcome back" : "Join CGU Connect"}</h2>
-            <p className="text-muted-foreground">Sign in with your CGU Google account</p>
+            <h2 className="text-3xl font-bold">
+              {internalMode === "login" && "Welcome back"}
+              {internalMode === "signup" && "Join the Community"}
+              {internalMode === "verify" && "Verify Email"}
+            </h2>
+            <p className="text-muted-foreground">
+              {internalMode === "login" ? "Sign in to your account" :
+                internalMode === "signup" ? "Use your college email to get started" :
+                  "Enter the code sent to " + email}
+            </p>
           </div>
-          <div className="space-y-4">
-            {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
 
-            {/* Login Form */}
-            {mode === "login" ? (
-              <form onSubmit={handleTraditionalLogin} className="space-y-4">
-                <div className="space-y-2"><Label>Email</Label><Input type="text" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-                <div className="space-y-2"><Label>Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
-                <Button type="submit" className="w-full" disabled={loading}>{loading ? "Logging in..." : "Log in"}</Button>
-              </form>
-            ) : (
-              // Signup / Google Button
-              <>
-                <Button onClick={handleGoogleLogin} variant="outline" className="w-full" size="lg" disabled={loading}>
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
-                  {loading ? "Connecting..." : "Sign up with Google"}
-                </Button>
-                <div className="text-center text-xs text-muted-foreground">Only @cgu-odisha.ac.in emails allowed</div>
-              </>
-            )}
-          </div>
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">{mode === "login" ? "Don't have an account? " : "Already have an account? "}</span>
-            <button onClick={onSwitchMode} className="text-primary hover:underline">{mode === "login" ? "Sign up" : "Log in"}</button>
-          </div>
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* LOGIN FORM */}
+          {internalMode === "login" && (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Email or Username</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="student@cgu-odisha.ac.in or username"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="password"
+                    className="pl-9"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Logging in..." : "Log in"}
+              </Button>
+            </form>
+          )}
+
+          {/* SIGNUP FORM */}
+          {internalMode === "signup" && (
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div className="space-y-2">
+                <Label>College Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="radius...12@cgu-odisha.ac.in"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Must be a @cgu-odisha.ac.in email</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Create Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="password"
+                    className="pl-9"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={6}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="password"
+                    className="pl-9"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Sending Code..." : "Sign Up"}
+              </Button>
+            </form>
+          )}
+
+          {/* VERIFY FORM */}
+          {internalMode === "verify" && (
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
+              <div className="space-y-2">
+                <Label>One-Time Password (OTP)</Label>
+                <div className="flex justify-center">
+                  <InputOTP maxLength={6} value={otp} onChange={(val) => setOtp(val)}>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                    </InputOTPGroup>
+                    <div className="w-4" />
+                    <InputOTPGroup>
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Verifying..." : "Verify & Login"}
+              </Button>
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setInternalMode("signup")}
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Wrong email? Go back
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Footer Switches */}
+          {internalMode !== "verify" && (
+            <div className="text-center text-sm pt-4">
+              <span className="text-muted-foreground">
+                {internalMode === "login" ? "Don't have an account? " : "Already have an account? "}
+              </span>
+              <button
+                onClick={() => {
+                  const newMode = internalMode === "login" ? "signup" : "login";
+                  setInternalMode(newMode);
+                  onSwitchMode(); // Notify parent if needed
+                }}
+                className="text-primary hover:underline font-medium"
+              >
+                {internalMode === "login" ? "Sign up" : "Log in"}
+              </button>
+            </div>
+          )}
+
         </div>
       </div>
-      <div className="hidden lg:block flex-1 relative">
-        <img src={heroBg} className="absolute inset-0 w-full h-full object-cover" />
+
+      {/* Right Image Panel */}
+      <div className="hidden lg:block flex-1 relative bg-black">
+        <img
+          src={heroBg}
+          className="absolute inset-0 w-full h-full object-cover opacity-80"
+          alt="Campus Life"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-12">
+          <div className="text-white">
+            <h3 className="text-3xl font-bold mb-2">Connect with your Campus</h3>
+            <p className="text-gray-300">Join the student community, share moments, and stay updated.</p>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ export interface User {
   semester: string;
   department: string;
 
+  profile_setup_complete: boolean;
   password_setup_complete: boolean;
   created_at: string;
   updated_at: string;
@@ -24,6 +25,7 @@ export interface UserPublic {
   semester: string;
   department: string;
 
+  profile_setup_complete: boolean;
   password_setup_complete: boolean;
   created_at: string;
   updated_at: string;

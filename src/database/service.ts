@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { hashPassword, verifyPassword } from '@/lib/password';
+
 import {
     User, PostWithUser, CreatePostData, CreateLikeData, CreateCommentData,
     CommentWithUser, Notification, CreateConversationData, ConversationWithUsers,
@@ -13,74 +13,44 @@ export class DatabaseService {
         console.log("Syncing user with Supabase...");
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (sessionError) {
-            console.error("Error getting session:", sessionError);
-            return { user: null, isNew: false };
-        }
-
-        if (!session?.user) {
-            console.log("No session user found.");
+        if (sessionError || !session?.user) {
+            console.log("No session found.");
             return { user: null, isNew: false };
         }
 
         const authUser = session.user;
-        const email = authUser.email!.toLowerCase();
-        console.log("Session user found:", email);
+        console.log("Session user found:", authUser.email);
 
-        // Enforce college email domain
-        if (!email.endsWith('@cgu-odisha.ac.in')) {
-            console.error("Invalid email domain:", email);
-            await supabase.auth.signOut();
-            return { user: null, isNew: false };
-        }
-
-        const { data: existingUser, error: lookupError } = await supabase
+        // Fetch user profile linked to this Auth ID
+        const { data: userProfile, error } = await supabase
             .from('users')
             .select('*')
-            .eq('email', email)
+            .eq('auth_id', authUser.id) // Ensure we match by Auth ID for security
             .single();
 
-        if (lookupError && lookupError.code !== 'PGRST116') { // PGRST116 is "Row not found"
-            console.error("Error looking up user:", lookupError);
-        }
-
-        if (existingUser) {
-            console.log("Existing user found in DB:", existingUser);
-            return { user: existingUser as User, isNew: false };
-        }
-
-        console.log("User not found in DB, creating new user...");
-        const username = email.split('@')[0].replace(/[^a-z0-9]/g, '_');
-        const { data: newUser, error } = await supabase
-            .from('users')
-            .insert({
-                email: email,
-                username: username,
-                password: '',
-                display_name: authUser.user_metadata.full_name || username,
-                avatar: authUser.user_metadata.avatar_url || '',
-                password_setup_complete: false
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Error creating user:", error);
+        if (error || !userProfile) {
+            console.error("Error fetching user profile:", error);
+            // In a correct setup with Triggers, this should rarely happen for new users
+            // unless the trigger failed.
             return { user: null, isNew: false };
         }
 
-        console.log("New user created successfully:", newUser);
-        return { user: newUser as User, isNew: true };
+        console.log("User profile found:", userProfile);
+        return { user: userProfile as User, isNew: false };
     }
 
-    async login(credentials: LoginData): Promise<AuthResult> {
-        const { data, error } = await supabase.from('users').select('*').eq('email', credentials.email).single();
-        if (error || !data) return { success: false, error: 'User not found' };
-        if (!data.password) return { success: false, error: 'Please login using Google OAuth' };
-        const isValidPassword = await verifyPassword(credentials.password, data.password);
-        if (!isValidPassword) return { success: false, error: 'Invalid password' };
-        return { success: true, user: data };
+    async getEmailByUsername(username: string): Promise<string | null> {
+        const { data, error } = await supabase
+            .from('users')
+            .select('email')
+            .eq('username', username)
+            .single();
+
+        if (error || !data) return null;
+        return data.email;
     }
+
+
 
     async getUserById(id: number): Promise<User | null> {
         const { data } = await supabase.from('users').select('*').eq('id', id).single();
@@ -179,25 +149,7 @@ export class DatabaseService {
         return { success: true };
     }
 
-    async updatePassword(userId: number, password: string): Promise<{ success: boolean; error?: string }> {
-        // Hash the password before storing
-        const hashedPassword = await hashPassword(password);
-        const { error } = await supabase
-            .from('users')
 
-            .update({ password: hashedPassword, password_setup_complete: true })
-            .eq('id', userId);
-
-        if (error) {
-            console.error("Error updating password:", error);
-            return { success: false, error: error.message };
-        }
-        return { success: true };
-    }
-
-    async setupPassword(userId: number, password: string): Promise<{ success: boolean; error?: string }> {
-        return this.updatePassword(userId, password);
-    }
 
     async checkUsernameAvailability(username: string): Promise<{ available: boolean; error?: string }> {
         const { data, error } = await supabase
