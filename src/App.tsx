@@ -55,7 +55,9 @@ const App = () => {
         // Check if user needs to set up profile
         if (!user.profile_setup_complete) {
           console.log("App: User needs profile setup, redirecting...");
-          window.location.href = '/profile-setup';
+          if (window.location.pathname !== '/profile-setup') {
+            window.location.href = '/profile-setup';
+          }
           return;
         }
 

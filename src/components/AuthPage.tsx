@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, AlertCircle, Mail, Lock, User, KeyRound } from "lucide-react";
+import { Lock, User, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/lib/supabase";
 import { dbService } from "@/database/service";
 import { sessionManager } from "@/lib/session";
 import heroBg from "@/assets/hero-bg.png";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import googleIcon from "@/assets/google.svg"; // Assuming you have a google icon asset, if not use text or lucide
 
 interface AuthPageProps {
   mode: "login" | "signup";
@@ -17,102 +17,33 @@ interface AuthPageProps {
   onAuthSuccess: () => void;
 }
 
-const AuthPage = ({ mode: initialMode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) => {
-  const [internalMode, setInternalMode] = useState<"login" | "signup" | "verify">(initialMode);
+const AuthPage = ({ mode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Form Data
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState(""); // For Login (can be email or username)
+  // Login Form Data
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [otp, setOtp] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
+  const handleGoogleLogin = async () => {
     try {
-      // 1. Validation
-      if (!email.endsWith("@cgu-odisha.ac.in")) {
-        throw new Error("Only @cgu-odisha.ac.in emails are allowed.");
-      }
-      if (password.length < 6) {
-        throw new Error("Password must be at least 6 characters.");
-      }
-      if (password !== confirmPassword) {
-        throw new Error("Passwords do not match.");
-      }
-
-      // 2. Supabase Signup (Triggers OTP Email)
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+      setLoading(true);
+      setError("");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
         options: {
-          // We can pass metadata, but our SQL trigger handles the profile creation primarily.
-          // However, passing data here is good for redundant safety.
-          data: {
-            full_name: email.split('@')[0],
-          }
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+            hd: 'cgu-odisha.ac.in' // Restrict to CGU domain
+          },
+          redirectTo: window.location.origin
         }
       });
-
-      if (signUpError) throw signUpError;
-
-      // 3. Switch to Verify Mode
-      if (data.user && !data.session) {
-        setInternalMode("verify");
-      } else if (data.session) {
-        // If auto-confirmed (shouldn't happen with email enabled, but just in case)
-        handleLoginSuccess(data.session.user);
-      }
-
+      if (error) throw error;
     } catch (err: any) {
-      console.error("Signup error object:", err);
-      let errorMessage = "Signup failed.";
-
-      if (typeof err === "string") {
-        errorMessage = err;
-      } else if (err?.message) {
-        errorMessage = err.message;
-      } else if (err && typeof err === "object") {
-        // Try to stringify if it's an object without message
-        errorMessage = JSON.stringify(err);
-        if (errorMessage === "{}") errorMessage = "Unknown error occurred (Empty error object).";
-      }
-
-      if (errorMessage.includes("rate limit") || errorMessage.includes("confirmation email")) {
-        setError("Email limit reached. excessive signups or Supabase limit. Try again later or check SMTP settings.");
-      } else {
-        setError(errorMessage);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        email,
-        token: otp,
-        type: 'signup'
-      });
-
-      if (verifyError) throw verifyError;
-
-      if (data.session) {
-        await handleLoginSuccess(data.session.user);
-      }
-    } catch (err: any) {
-      setError(err.message || "Invalid OTP.");
-    } finally {
+      setError(err.message || "Failed to connect with Google.");
       setLoading(false);
     }
   };
@@ -123,9 +54,9 @@ const AuthPage = ({ mode: initialMode, onBack, onSwitchMode, onAuthSuccess }: Au
     setError("");
 
     try {
-      let loginEmail = username; // Default assume it's email
+      let loginEmail = username;
 
-      // If input doesn't look like email, treat as username and resolve it
+      // If input doesn't look like email, treat as username
       if (!username.includes("@")) {
         const resolvedEmail = await dbService.getEmailByUsername(username);
         if (!resolvedEmail) {
@@ -144,22 +75,19 @@ const AuthPage = ({ mode: initialMode, onBack, onSwitchMode, onAuthSuccess }: Au
       if (data.session) {
         await handleLoginSuccess(data.session.user);
       }
-
     } catch (err: any) {
-      setError(err.message || "Login failed check your credentials.");
+      setError(err.message || "Invalid credentials.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleLoginSuccess = async (authUser: any) => {
-    // Sync user profile
     const { user } = await dbService.syncUserWithSupabase();
 
     if (user) {
       sessionManager.login(user);
 
-      // Check if profile setup is needed (New Signups)
       if (!user.profile_setup_complete) {
         window.location.href = "/profile-setup";
       } else {
@@ -175,33 +103,26 @@ const AuthPage = ({ mode: initialMode, onBack, onSwitchMode, onAuthSuccess }: Au
       {/* Left Panel */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md space-y-8">
-          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8">
-            <ArrowLeft className="h-4 w-4" /> Back to feed
-          </button>
-
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-gradient">CGU Connect</h1>
             <h2 className="text-3xl font-bold">
-              {internalMode === "login" && "Welcome back"}
-              {internalMode === "signup" && "Join the Community"}
-              {internalMode === "verify" && "Verify Email"}
+              {mode === "login" ? "Welcome back" : "Join the Community"}
             </h2>
             <p className="text-muted-foreground">
-              {internalMode === "login" ? "Sign in to your account" :
-                internalMode === "signup" ? "Use your college email to get started" :
-                  "Enter the code sent to " + email}
+              {mode === "login"
+                ? "Sign in to access your account"
+                : "Sign up with your college email"}
             </p>
           </div>
 
           {error && (
             <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           {/* LOGIN FORM */}
-          {internalMode === "login" && (
+          {mode === "login" && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label>Email or Username</Label>
@@ -221,12 +142,19 @@ const AuthPage = ({ mode: initialMode, onBack, onSwitchMode, onAuthSuccess }: Au
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    type="password"
-                    className="pl-9"
+                    type={showPassword ? "text" : "password"}
+                    className="pl-9 pr-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
@@ -235,110 +163,45 @@ const AuthPage = ({ mode: initialMode, onBack, onSwitchMode, onAuthSuccess }: Au
             </form>
           )}
 
-          {/* SIGNUP FORM */}
-          {internalMode === "signup" && (
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div className="space-y-2">
-                <Label>College Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    className="pl-9"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="radius...12@cgu-odisha.ac.in"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">Must be a @cgu-odisha.ac.in email</p>
+          {/* SIGNUP (GOOGLE ONLY) */}
+          {mode === "signup" && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-4 rounded-lg text-center text-sm text-muted-foreground">
+                <p>New users must sign up using their official CGU email.</p>
               </div>
-              <div className="space-y-2">
-                <Label>Create Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="password"
-                    className="pl-9"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    minLength={6}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="password"
-                    className="pl-9"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Sending Code..." : "Sign Up"}
-              </Button>
-            </form>
-          )}
-
-          {/* VERIFY FORM */}
-          {internalMode === "verify" && (
-            <form onSubmit={handleVerifyOtp} className="space-y-6">
-              <div className="space-y-2">
-                <Label>One-Time Password (OTP)</Label>
-                <div className="flex justify-center">
-                  <InputOTP maxLength={6} value={otp} onChange={(val) => setOtp(val)}>
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                    </InputOTPGroup>
-                    <div className="w-4" />
-                    <InputOTPGroup>
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Verifying..." : "Verify & Login"}
-              </Button>
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setInternalMode("signup")}
-                  className="text-sm text-muted-foreground hover:text-primary"
-                >
-                  Wrong email? Go back
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Footer Switches */}
-          {internalMode !== "verify" && (
-            <div className="text-center text-sm pt-4">
-              <span className="text-muted-foreground">
-                {internalMode === "login" ? "Don't have an account? " : "Already have an account? "}
-              </span>
-              <button
-                onClick={() => {
-                  const newMode = internalMode === "login" ? "signup" : "login";
-                  setInternalMode(newMode);
-                  onSwitchMode(); // Notify parent if needed
-                }}
-                className="text-primary hover:underline font-medium"
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full py-6 flex items-center gap-2 text-lg"
+                onClick={handleGoogleLogin}
+                disabled={loading}
               >
-                {internalMode === "login" ? "Sign up" : "Log in"}
-              </button>
+                {/* Fallback icon if asset missing, or use text */}
+                <span className="font-bold text-blue-600">G</span>
+                Sign up with Google
+              </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                You will be asked to set a password and profile details after verification.
+              </p>
             </div>
           )}
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                {mode === "login" ? "New here?" : "Already have an account?"}
+              </span>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Button variant="link" onClick={onSwitchMode} className="text-primary hover:underline">
+              {mode === "login" ? "Create an account" : "Log in with Password"}
+            </Button>
+          </div>
 
         </div>
       </div>

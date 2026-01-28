@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/lib/supabase";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function ProfileSetup() {
     const navigate = useNavigate();
@@ -22,6 +24,10 @@ export default function ProfileSetup() {
         department: "",
         semester: ""
     });
+
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
     useEffect(() => {
         // If not logged in, redirect to login
@@ -69,42 +75,58 @@ export default function ProfileSetup() {
         if (!user) return;
 
         try {
+            // Validate Passwords
+            if (password.length < 6) {
+                setError("Password must be at least 6 characters.");
+                setLoading(false);
+                return;
+            }
+            if (password !== confirmPassword) {
+                setError("Passwords do not match.");
+                setLoading(false);
+                return;
+            }
+
             if (!(await validateUsername(formData.username))) {
                 setLoading(false);
                 return;
             }
 
-            // Update User in DB
-            const { success, error } = await dbService.updateUserProfile(user.id, {
+            // 1. Update Password in Supabase Auth
+            const { error: passwordError } = await supabase.auth.updateUser({ password: password });
+            if (passwordError) {
+                setError("Failed to set password: " + passwordError.message);
+                setLoading(false);
+                return;
+            }
+
+            // 2. Update User Profile in DB
+            const { success, error: profileError } = await dbService.updateUserProfile(user.id, {
                 ...formData,
                 avatar: user.avatar // Keep existing avatar or default
             });
 
             if (!success) {
-                setError(error || "Failed to update profile.");
+                setError(profileError || "Failed to update profile.");
                 setLoading(false);
                 return;
             }
 
-            // Mark setup as complete in DB (We need a specific method or update the flag manually)
-            // Since updateUserProfile in service.ts doesn't explicitly set profile_setup_complete=true, 
-            // we might need to handle that. 
-            // Ideally, the SQL trigger should set it to false, and this action sets it to true.
-            // Let's assume updateUserProfile can handle generic updates or we make a specific call.
+            // 3. Mark setup as complete
+            const { error: flagError } = await supabase
+                .from("users")
+                .update({ profile_setup_complete: true })
+                .eq("id", user.id);
 
-            // We'll update the 'profile_setup_complete' flag manually since the generic update might not capture it if not in UI
-            // Actually, let's call supabase directly here or add a method to service. But to keep it clean, let's just 
-            // trust that we can add 'profile_setup_complete: true' to the update object if the service allows arbitrary fields 
-            // or we just call the service method which allows us to pass "data".
+            if (flagError) {
+                console.error("Failed to set completion flag", flagError);
+                // Warning but proceed? No, user might get stuck. Warn.
+                setError("Profile saved but failed to complete setup. Please try again.");
+                setLoading(false);
+                return;
+            }
 
-            // Let's modify the service call to include this flag explicitly if the type allows it, 
-            // or rely on a specific "completeSetup" method if we had one.
-            // Since we don't, let's do a direct Supabase update for the flag to ensure it sticks.
-
-            const { supabase } = await import("@/lib/supabase");
-            await supabase.from("users").update({ profile_setup_complete: true }).eq("id", user.id);
-
-            // Refresh local session
+            // Refresh local session and redirect
             const { user: updatedUser } = await dbService.syncUserWithSupabase();
             if (updatedUser) {
                 sessionManager.login(updatedUser);
@@ -123,7 +145,7 @@ export default function ProfileSetup() {
             <div className="max-w-md w-full space-y-8 bg-card p-8 rounded-xl shadow-lg border">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold">Complete Your Profile</h1>
-                    <p className="text-muted-foreground mt-2">Tell us a bit about yourself</p>
+                    <p className="text-muted-foreground mt-2">Set up your password and details</p>
                 </div>
 
                 {error && (
@@ -133,8 +155,47 @@ export default function ProfileSetup() {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+
+                    {/* Security Section */}
+                    <div className="space-y-4 pt-2 pb-4 border-b">
+                        <h3 className="font-medium text-sm text-foreground/80">Account Security</h3>
+                        <div className="space-y-2">
+                            <Label htmlFor="password">New Password <span className="text-red-500">*</span></Label>
+                            <div className="relative">
+                                <Input
+                                    type={showPassword ? "text" : "password"}
+                                    id="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    minLength={6}
+                                    placeholder="******"
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                                >
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="confirmPassword">Confirm Password <span className="text-red-500">*</span></Label>
+                            <Input
+                                type="password"
+                                id="confirmPassword"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                placeholder="******"
+                            />
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
-                        <Label htmlFor="username">Username</Label>
+                        <Label htmlFor="username">Username <span className="text-red-500">*</span></Label>
                         <Input
                             id="username"
                             value={formData.username}
@@ -146,7 +207,7 @@ export default function ProfileSetup() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="displayName">Display Name</Label>
+                        <Label htmlFor="displayName">Display Name <span className="text-red-500">*</span></Label>
                         <Input
                             id="displayName"
                             value={formData.displayName}
@@ -204,7 +265,7 @@ export default function ProfileSetup() {
                     </div>
 
                     <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? "Saving..." : "Complete Setup"}
+                        {loading ? "Saving..." : "Save & Complete Setup"}
                     </Button>
                 </form>
             </div>
