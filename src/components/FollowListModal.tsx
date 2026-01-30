@@ -36,11 +36,11 @@ const FollowListModal = ({ isOpen, onClose, users, title }: FollowListModalProps
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={user.avatar} />
                   <AvatarFallback>
-                    {user.displayName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
+                    {user.display_name?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">{user.displayName || user.username}</p>
+                  <p className="font-semibold text-sm">{user.display_name || user.username}</p>
                   <p className="text-xs text-muted-foreground">@{user.username}</p>
                   {user.bio && (
                     <p className="text-xs text-muted-foreground mt-1">{user.bio}</p>

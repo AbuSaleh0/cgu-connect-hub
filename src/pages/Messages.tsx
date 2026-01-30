@@ -1,6 +1,21 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { sessionManager } from "@/lib/session";
+import { dbService } from "@/database/service";
+import { messageEventSystem, useRealtimeMessages } from "@/database/messaging";
+import { User, MessageWithSender, ConversationWithUsers } from "@/database/types";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Send, ArrowLeft, Edit3, Search } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import LoginOverlay from "@/components/LoginOverlay";
 
+interface MessageInputProps {
+  conversationId: number;
+  onMessageSent: () => void;
+}
 
 const MessageInput = ({ conversationId, onMessageSent }: MessageInputProps) => {
   const [message, setMessage] = useState("");
@@ -166,7 +181,7 @@ const ChatWindow = ({ conversation, currentUserId, onBack, onMessagesRead }: Cha
 
       // Mark messages as read (messages sent by the other participant that we're now reading)
       console.log('Marking messages as read for conversation:', conversation.id, 'user:', currentUserId);
-      const markedAsRead = await dbService.markMessagesAsRead(conversation.id, currentUserId);
+      const markedAsRead = await dbService.markConversationMessagesAsRead(conversation.id, currentUserId);
       console.log('Messages marked as read result:', markedAsRead);
 
       if (markedAsRead) {
@@ -406,7 +421,7 @@ const NewChatModal = ({ isOpen, onClose, onUserSelect }: NewChatModalProps) => {
           const filteredUsers = allUsers.filter(user =>
             user.id !== currentUser?.id &&
             (user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              user.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
+              user.display_name.toLowerCase().includes(searchTerm.toLowerCase()))
           );
           console.log('Filtered users for search:', filteredUsers);
           setUsers(filteredUsers);
@@ -477,8 +492,8 @@ const NewChatModal = ({ isOpen, onClose, onUserSelect }: NewChatModalProps) => {
                   </div>
                   <div>
                     <p className="font-semibold">{user.username}</p>
-                    {user.displayName && (
-                      <p className="text-sm text-gray-600">{user.displayName}</p>
+                    {user.display_name && (
+                      <p className="text-sm text-gray-600">{user.display_name}</p>
                     )}
                   </div>
                 </div>

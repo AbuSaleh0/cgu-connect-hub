@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,7 @@ interface FeedbackModalProps {
 
 const FeedbackModal = ({ isOpen, onClose, currentUser }: FeedbackModalProps) => {
   const [formData, setFormData] = useState({
-    name: currentUser?.displayName || currentUser?.username || "",
+    name: currentUser?.display_name || currentUser?.username || "",
     email: currentUser?.email || "",
     category: "",
     subject: "",
@@ -37,7 +37,7 @@ const FeedbackModal = ({ isOpen, onClose, currentUser }: FeedbackModalProps) => 
   // Reset form when modal opens/closes
   const resetForm = () => {
     setFormData({
-      name: currentUser?.displayName || currentUser?.username || "",
+      name: currentUser?.display_name || currentUser?.username || "",
       email: currentUser?.email || "",
       category: "",
       subject: "",
@@ -85,9 +85,9 @@ const FeedbackModal = ({ isOpen, onClose, currentUser }: FeedbackModalProps) => 
     return null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -110,11 +110,18 @@ const FeedbackModal = ({ isOpen, onClose, currentUser }: FeedbackModalProps) => 
       formDataToSubmit.append('username', currentUser?.username || 'anonymous');
       formDataToSubmit.append('timestamp', new Date().toISOString());
 
+      const params = new URLSearchParams();
+      formDataToSubmit.forEach((value, key) => {
+        if (typeof value === 'string') {
+          params.append(key, value);
+        }
+      });
+
       // Submit to Netlify
       const response = await fetch('/', {
         method: 'POST',
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams(formDataToSubmit as any).toString()
+        body: params.toString()
       });
 
       if (response.ok) {
@@ -207,8 +214,8 @@ const FeedbackModal = ({ isOpen, onClose, currentUser }: FeedbackModalProps) => 
               <Label htmlFor="category" className="text-sm font-medium">
                 Category *
               </Label>
-              <Select 
-                value={formData.category} 
+              <Select
+                value={formData.category}
                 onValueChange={(value) => handleInputChange('category', value)}
                 disabled={isSubmitting}
               >
@@ -274,8 +281,8 @@ const FeedbackModal = ({ isOpen, onClose, currentUser }: FeedbackModalProps) => 
             <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={!isFormValid || isSubmitting}
             >
               {isSubmitting ? (

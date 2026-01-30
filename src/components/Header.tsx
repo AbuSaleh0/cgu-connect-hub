@@ -97,11 +97,11 @@ const Header = ({
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={currentUser.avatar} />
                   <AvatarFallback>
-                    {currentUser.displayName?.[0]?.toUpperCase() || currentUser.username?.[0]?.toUpperCase()}
+                    {currentUser.display_name?.[0]?.toUpperCase() || currentUser.username?.[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <span className="font-medium">
-                  {currentUser.displayName || currentUser.username}
+                  {currentUser.display_name || currentUser.username}
                 </span>
               </button>
 

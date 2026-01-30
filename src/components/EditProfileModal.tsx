@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,7 @@ interface EditProfileModalProps {
 }
 
 const EditProfileModal = ({ isOpen, onClose, user, onUpdate }: EditProfileModalProps) => {
-  const [displayName, setDisplayName] = useState(user.displayName);
+  const [displayName, setDisplayName] = useState(user.display_name);
   const [bio, setBio] = useState(user.bio);
   const [avatar, setAvatar] = useState(user.avatar || "");
   const [semester, setSemester] = useState(user.semester);
@@ -28,7 +28,7 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdate }: EditProfileModalP
   const [showCropModal, setShowCropModal] = useState(false);
   const [tempImageSrc, setTempImageSrc] = useState("");
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -47,14 +47,14 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdate }: EditProfileModalP
   const handleSave = async () => {
     setLoading(true);
     try {
-      const result = dbService.updateUserProfile(user.id, {
-        displayName,
+      const result = await dbService.updateUserProfile(user.id, {
+        display_name: displayName,
         bio,
         avatar,
         semester,
         department
       });
-      
+
       if (result.success) {
         onUpdate();
         onClose();
@@ -174,7 +174,7 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdate }: EditProfileModalP
           </div>
         </div>
       </DialogContent>
-      
+
       <ImageCropModal
         isOpen={showCropModal}
         onClose={() => setShowCropModal(false)}

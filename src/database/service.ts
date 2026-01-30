@@ -1,10 +1,10 @@
 import { supabase } from '@/lib/supabase';
 
 import {
-    User, PostWithUser, CreatePostData, CreateLikeData, CreateCommentData,
+    User, UserPublic, PostWithUser, CreatePostData, CreateLikeData, CreateCommentData,
     CommentWithUser, Notification, CreateConversationData, ConversationWithUsers,
     MessageWithSender, CreateMessageData, CreateFollowData, LoginData, AuthResult,
-    CreateSavedPostData, Conversation
+    CreateSavedPostData, Conversation, UpdateProfileData
 } from './types';
 
 export class DatabaseService {
@@ -129,12 +129,12 @@ export class DatabaseService {
         return true;
     }
 
-    async updateUserProfile(userId: number, data: any): Promise<{ success: boolean; error?: string }> {
+    async updateUserProfile(userId: number, data: UpdateProfileData): Promise<{ success: boolean; error?: string }> {
         const { error } = await supabase
             .from('users')
             .update({
                 username: data.username,
-                display_name: data.displayName,
+                display_name: data.display_name,
                 bio: data.bio,
                 avatar: data.avatar,
                 semester: data.semester,
@@ -164,6 +164,115 @@ export class DatabaseService {
         }
 
         return { available: !data };
+    }
+
+    async getPostsByUser(userId: number): Promise<PostWithUser[]> {
+        const { data } = await supabase
+            .from('posts')
+            .select('*, users(username, avatar)')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        return (data || []).map((post: any) => ({
+            ...post,
+            username: post.users?.username,
+            user_avatar: post.users?.avatar
+        }));
+    }
+
+    async isFollowing(followerId: number, followingId: number): Promise<boolean> {
+        const { data } = await supabase
+            .from('follows')
+            .select('id')
+            .eq('follower_id', followerId)
+            .eq('following_id', followingId)
+            .maybeSingle();
+        return !!data;
+    }
+
+    async toggleFollow(data: CreateFollowData): Promise<boolean> {
+        const { data: existing } = await supabase
+            .from('follows')
+            .select('id')
+            .eq('follower_id', data.follower_id)
+            .eq('following_id', data.following_id)
+            .maybeSingle();
+
+        if (existing) {
+            await supabase.from('follows').delete().eq('id', existing.id);
+            return false;
+        } else {
+            await supabase.from('follows').insert({ follower_id: data.follower_id, following_id: data.following_id });
+            return true;
+        }
+    }
+
+    async getFollowerCount(userId: number): Promise<number> {
+        const { count } = await supabase
+            .from('follows')
+            .select('id', { count: 'exact', head: true })
+            .eq('following_id', userId);
+        return count || 0;
+    }
+
+    async getFollowingCount(userId: number): Promise<number> {
+        const { count } = await supabase
+            .from('follows')
+            .select('id', { count: 'exact', head: true })
+            .eq('follower_id', userId);
+        return count || 0;
+    }
+
+    async getFollowersList(userId: number): Promise<UserPublic[]> {
+        const { data } = await supabase
+            .from('follows')
+            .select('follower_id, users!follows_follower_id_fkey(*)')
+            .eq('following_id', userId);
+
+        return (data || []).map((item: any) => {
+            const { password, ...user } = item.users;
+            return user as UserPublic;
+        });
+    }
+
+    async getFollowingList(userId: number): Promise<UserPublic[]> {
+        const { data } = await supabase
+            .from('follows')
+            .select('following_id, users!follows_following_id_fkey(*)')
+            .eq('follower_id', userId);
+
+        return (data || []).map((item: any) => {
+            const { password, ...user } = item.users;
+            return user as UserPublic;
+        });
+    }
+
+    // Notification methods
+    async getUserNotifications(userId: number): Promise<Notification[]> {
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching notifications:', error);
+            return [];
+        }
+
+        return data || [];
+    }
+
+    async markNotificationsAsRead(userId: number): Promise<void> {
+        const { error } = await supabase
+            .from('notifications')
+            .update({ read: true })
+            .eq('user_id', userId)
+            .eq('read', false);
+
+        if (error) {
+            console.error('Error marking notifications as read:', error);
+        }
     }
 
     // Messaging methods
@@ -485,6 +594,24 @@ export class DatabaseService {
         // No-op for Supabase as it's cloud-based
         console.log("Database initialized");
         return Promise.resolve();
+    }
+    async getLastSeenMessageId(conversationId: number, userId: number): Promise<number | null> {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId)
+            .eq('sender_id', userId)
+            .eq('is_read', true)
+            .order('id', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error getting last seen message:', error);
+            return null;
+        }
+
+        return data?.id || null;
     }
 }
 

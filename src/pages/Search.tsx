@@ -49,7 +49,7 @@ const Search = () => {
       const results = allUsers
         .filter(user =>
           user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+          user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
         )
         .map(user => {
           const { password, ...publicUser } = user;
@@ -114,11 +114,11 @@ const Search = () => {
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={user.avatar} />
                       <AvatarFallback>
-                        {user.displayName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
+                        {user.display_name?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <p className="font-semibold">{user.displayName || user.username}</p>
+                      <p className="font-semibold">{user.display_name || user.username}</p>
                       <p className="text-sm text-muted-foreground">@{user.username}</p>
                       {user.bio && (
                         <p className="text-sm text-muted-foreground mt-1">{user.bio}</p>
@@ -146,11 +146,11 @@ const Search = () => {
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={user.avatar} />
                       <AvatarFallback>
-                        {user.displayName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
+                        {user.display_name?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <p className="font-semibold">{user.displayName || user.username}</p>
+                      <p className="font-semibold">{user.display_name || user.username}</p>
                       <p className="text-sm text-muted-foreground">@{user.username}</p>
                       {user.bio && (
                         <p className="text-sm text-muted-foreground mt-1">{user.bio}</p>

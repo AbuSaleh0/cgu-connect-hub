@@ -33,18 +33,18 @@ const Sidebar = ({ currentUser, onLogout }: SidebarProps) => {
         <SheetHeader>
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
-        
+
         <div className="flex flex-col gap-4 mt-6">
           {/* User Profile Section */}
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
             <Avatar className="h-12 w-12">
               <AvatarImage src={currentUser.avatar} />
               <AvatarFallback>
-                {currentUser.displayName?.[0]?.toUpperCase() || currentUser.username?.[0]?.toUpperCase()}
+                {currentUser.display_name?.[0]?.toUpperCase() || currentUser.username?.[0]?.toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-semibold">{currentUser.displayName}</p>
+              <p className="font-semibold">{currentUser.display_name}</p>
               <p className="text-sm text-muted-foreground">@{currentUser.username}</p>
             </div>
           </div>

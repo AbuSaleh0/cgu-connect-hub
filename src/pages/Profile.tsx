@@ -383,13 +383,13 @@ const Profile = () => {
             <Avatar className="h-20 w-20 md:h-24 md:w-24 flex-shrink-0">
               <AvatarImage src={user.avatar} />
               <AvatarFallback className="text-base md:text-lg">
-                {user.displayName?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
+                {user.display_name?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase()}
               </AvatarFallback>
             </Avatar>
 
             <div className="flex-1 space-y-3 md:space-y-4 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                <h2 className="text-lg md:text-xl font-semibold truncate">{user.displayName}</h2>
+                <h2 className="text-lg md:text-xl font-semibold truncate">{user.display_name}</h2>
 
                 {/* Desktop buttons - hidden on mobile */}
                 <div className="hidden md:flex">

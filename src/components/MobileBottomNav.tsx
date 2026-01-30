@@ -12,7 +12,7 @@ interface MobileBottomNavProps {
   currentUser?: UserPublic | null;
 }
 
-const MobileBottomNav = ({ 
+const MobileBottomNav = ({
   onHomeClick,
   onExploreClick,
   onNotificationsClick,
@@ -74,11 +74,10 @@ const MobileBottomNav = ({
         {/* Home */}
         <button
           onClick={handleHomeClick}
-          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${
-            isActive('/') 
-              ? 'text-blue-600 bg-blue-50' 
+          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/')
+              ? 'text-blue-600 bg-blue-50'
               : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-          }`}
+            }`}
         >
           <Home className="h-6 w-6" />
         </button>
@@ -86,11 +85,10 @@ const MobileBottomNav = ({
         {/* Search */}
         <button
           onClick={handleExploreClick}
-          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${
-            isActive('/search') 
-              ? 'text-blue-600 bg-blue-50' 
+          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/search')
+              ? 'text-blue-600 bg-blue-50'
               : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-          }`}
+            }`}
         >
           <Search className="h-6 w-6" />
         </button>
@@ -98,11 +96,10 @@ const MobileBottomNav = ({
         {/* Create */}
         <button
           onClick={handleCreateClick}
-          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${
-            isActive('/create') 
-              ? 'text-blue-600 bg-blue-50' 
+          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/create')
+              ? 'text-blue-600 bg-blue-50'
               : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-          }`}
+            }`}
         >
           <PlusSquare className="h-6 w-6" />
         </button>
@@ -110,11 +107,10 @@ const MobileBottomNav = ({
         {/* Notifications */}
         <button
           onClick={handleNotificationsClick}
-          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${
-            isActive('/notifications') 
-              ? 'text-blue-600 bg-blue-50' 
+          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/notifications')
+              ? 'text-blue-600 bg-blue-50'
               : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-          }`}
+            }`}
         >
           <Heart className="h-6 w-6" />
         </button>
@@ -123,16 +119,15 @@ const MobileBottomNav = ({
         {currentUser && (
           <button
             onClick={handleProfileClick}
-            className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${
-              isActive(`/${currentUser.username}`) 
-                ? 'text-blue-600 bg-blue-50' 
+            className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive(`/${currentUser.username}`)
+                ? 'text-blue-600 bg-blue-50'
                 : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
+              }`}
           >
             <Avatar className="h-6 w-6">
               <AvatarImage src={currentUser.avatar} />
               <AvatarFallback className="text-xs">
-                {currentUser.displayName?.[0]?.toUpperCase() || currentUser.username?.[0]?.toUpperCase()}
+                {currentUser.display_name?.[0]?.toUpperCase() || currentUser.username?.[0]?.toUpperCase()}
               </AvatarFallback>
             </Avatar>
           </button>

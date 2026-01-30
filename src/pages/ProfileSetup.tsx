@@ -19,7 +19,7 @@ export default function ProfileSetup() {
 
     const [formData, setFormData] = useState({
         username: "",
-        displayName: "",
+        display_name: "",
         bio: "",
         department: "",
         semester: ""
@@ -210,8 +210,8 @@ export default function ProfileSetup() {
                         <Label htmlFor="displayName">Display Name <span className="text-red-500">*</span></Label>
                         <Input
                             id="displayName"
-                            value={formData.displayName}
-                            onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                            value={formData.display_name}
+                            onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                             placeholder="John Doe"
                             required
                         />

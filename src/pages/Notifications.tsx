@@ -114,7 +114,7 @@ const Notifications = () => {
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={fromUser?.avatar} />
                       <AvatarFallback>
-                        {fromUser?.displayName?.[0]?.toUpperCase() || fromUser?.username?.[0]?.toUpperCase()}
+                        {fromUser?.display_name?.[0]?.toUpperCase() || fromUser?.username?.[0]?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-1">
