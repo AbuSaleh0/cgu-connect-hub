@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, User, Lock, Bookmark, LogOut } from "lucide-react";
+import { Menu, User, Lock, Bookmark, LogOut, MessageSquareQuote } from "lucide-react";
 import { UserPublic } from "@/database/types";
 import { useNavigate } from "react-router-dom";
 

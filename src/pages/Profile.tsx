@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Settings, UserPlus, MessageCircle, User, Lock, Bookmark, LogOut, Menu, X, MessageSquare, Heart, Pin } from "lucide-react";
+import { ArrowLeft, Settings, UserPlus, MessageCircle, User, Lock, Bookmark, LogOut, Menu, X, MessageSquare, Heart, Pin, MessageSquareQuote } from "lucide-react";
 import { dbService } from "@/database";
 import { sessionManager } from "@/lib/session";
 import { UserPublic, PostWithUser } from "@/database/types";
@@ -314,6 +314,18 @@ const Profile = () => {
               >
                 <Bookmark className="h-4 w-4 flex-shrink-0" />
                 <span className="truncate">Saved Posts</span>
+              </Button>
+
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-sm py-2 px-3"
+                onClick={() => {
+                  setShowMenu(false);
+                  navigate('/my-confessions');
+                }}
+              >
+                <MessageSquareQuote className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Your Confessions</span>
               </Button>
 
               <Button

@@ -4,7 +4,9 @@ import {
     User, UserPublic, PostWithUser, CreatePostData, CreateLikeData, CreateCommentData,
     CommentWithUser, Notification, CreateConversationData, ConversationWithUsers,
     MessageWithSender, CreateMessageData, CreateFollowData, LoginData, AuthResult,
-    CreateSavedPostData, Conversation, UpdateProfileData
+    CreateSavedPostData, Conversation, UpdateProfileData,
+    Confession, ConfessionLike, ConfessionComment, ConfessionCommentWithUser, CreateConfessionData,
+    CreateConfessionLikeData, CreateConfessionCommentData
 } from './types';
 
 export class DatabaseService {
@@ -595,6 +597,80 @@ export class DatabaseService {
         console.log("Database initialized");
         return Promise.resolve();
     }
+
+    // Saved Confessions methods
+    async isConfessionSaved(userId: number, confessionId: number): Promise<boolean> {
+        const { data } = await supabase
+            .from('saved_confessions')
+            .select('id')
+            .match({ user_id: userId, confession_id: confessionId })
+            .single();
+        return !!data;
+    }
+
+    async toggleConfessionSave(userId: number, confessionId: number): Promise<boolean> {
+        const { data: existing } = await supabase
+            .from('saved_confessions')
+            .select('id')
+            .match({ user_id: userId, confession_id: confessionId })
+            .single();
+
+        if (existing) {
+            await supabase.from('saved_confessions').delete().eq('id', existing.id);
+            return false;
+        } else {
+            await supabase.from('saved_confessions').insert({ user_id: userId, confession_id: confessionId });
+            return true;
+        }
+    }
+
+    async getSavedConfessions(userId: number): Promise<Confession[]> {
+        const { data, error } = await supabase
+            .from('saved_confessions')
+            .select(`
+                confession_id,
+                confession:confessions (*)
+            `)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching saved confessions:', error);
+            return [];
+        }
+
+        // Extract confessions from the join
+        return (data || [])
+            .map((item: any) => item.confession)
+            .filter((confession: any) => confession !== null);
+    }
+
+    async getSavedPosts(userId: number): Promise<PostWithUser[]> {
+        const { data, error } = await supabase
+            .from('saved_posts')
+            .select(`
+                post_id,
+                posts:posts (*, users(username, avatar))
+            `)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching saved posts:', error);
+            return [];
+        }
+
+        return (data || []).map((item: any) => {
+            const post = item.posts;
+            if (!post) return null;
+            return {
+                ...post,
+                username: post.users?.username,
+                user_avatar: post.users?.avatar
+            };
+        }).filter((post: any) => post !== null);
+    }
+
     async getLastSeenMessageId(conversationId: number, userId: number): Promise<number | null> {
         const { data, error } = await supabase
             .from('messages')
@@ -612,6 +688,143 @@ export class DatabaseService {
         }
 
         return data?.id || null;
+    }
+
+    // Confession Methods
+    async getConfessions(): Promise<Confession[]> {
+        const { data, error } = await supabase
+            .from('confessions')
+            .select('id, content, likes_count, comments_count, created_at')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching confessions:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async getUserConfessions(userId: number): Promise<Confession[]> {
+        const { data, error } = await supabase
+            .from('confessions')
+            .select('*') // We can select all for the owner
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching user confessions:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    async deleteConfession(confessionId: number): Promise<{ success: boolean; error?: string }> {
+        const { error } = await supabase
+            .from('confessions')
+            .delete()
+            .eq('id', confessionId);
+
+        if (error) {
+            console.error('Error deleting confession:', error);
+            return { success: false, error: error.message };
+        }
+        return { success: true };
+    }
+
+    async createConfession(data: CreateConfessionData): Promise<Confession | null> {
+        const { data: confession, error } = await supabase
+            .from('confessions')
+            .insert({
+                user_id: data.user_id,
+                content: data.content
+            })
+            .select('*')
+            .single();
+
+        if (error) {
+            console.error('Error creating confession:', error);
+            return null;
+        }
+        return confession;
+    }
+
+    async isConfessionLiked(userId: number, confessionId: number): Promise<boolean> {
+        const { data } = await supabase
+            .from('confession_likes')
+            .select('id')
+            .match({ user_id: userId, confession_id: confessionId })
+            .maybeSingle(); // Use maybeSingle to avoid 406 error if not found
+        return !!data;
+    }
+
+    async toggleConfessionLike(userId: number, confessionId: number): Promise<boolean> {
+        const { data: existing } = await supabase
+            .from('confession_likes')
+            .select('id')
+            .match({ user_id: userId, confession_id: confessionId })
+            .maybeSingle();
+
+        if (existing) {
+            await supabase.from('confession_likes').delete().eq('id', existing.id);
+            return false;
+        } else {
+            await supabase.from('confession_likes').insert({ user_id: userId, confession_id: confessionId });
+            return true;
+        }
+    }
+
+    async getConfessionComments(confessionId: number): Promise<ConfessionCommentWithUser[]> {
+        const { data, error } = await supabase
+            .from('confession_comments')
+            .select(`
+                *,
+                user:users (
+                    username,
+                    avatar
+                )
+            `)
+            .eq('confession_id', confessionId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching confession comments:', error);
+            return [];
+        }
+
+        // Supabase returns nested data, we need to cast it safely
+        return (data as unknown as ConfessionCommentWithUser[]) || [];
+    }
+
+    async createConfessionComment(data: CreateConfessionCommentData): Promise<ConfessionComment | null> {
+        const { data: comment, error } = await supabase
+            .from('confession_comments')
+            .insert({
+                user_id: data.user_id,
+                confession_id: data.confession_id,
+                content: data.content
+            })
+            .select('*')
+            .single();
+
+        if (error) {
+            console.error('Error creating confession comment:', error);
+            return null;
+        }
+
+        return comment;
+    }
+
+    async deleteConfessionComment(commentId: number): Promise<boolean> {
+        const { error } = await supabase
+            .from('confession_comments')
+            .delete()
+            .eq('id', commentId);
+
+        if (error) {
+            console.error('Error deleting confession comment:', error);
+            return false;
+        }
+        return true;
     }
 }
 

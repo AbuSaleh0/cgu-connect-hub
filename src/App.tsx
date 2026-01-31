@@ -13,6 +13,9 @@ import CreatePost from "./pages/CreatePost";
 import Search from "./pages/Search";
 import Notifications from "./pages/Notifications";
 import Messages from "./pages/Messages";
+import Confessions from "./pages/Confessions";
+import MyConfessions from "./pages/MyConfessions";
+import SavedPosts from "./pages/SavedPosts";
 import NotFound from "./pages/NotFound";
 
 import { supabase } from "@/lib/supabase";
@@ -98,6 +101,9 @@ const App = () => {
             <Route path="/search" element={<Search />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/messages" element={<Messages />} />
+            <Route path="/confessions" element={<Confessions />} />
+            <Route path="/my-confessions" element={<MyConfessions />} />
+            <Route path="/saved" element={<SavedPosts />} />
             <Route path="/:username" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

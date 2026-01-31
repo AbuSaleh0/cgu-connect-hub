@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User, Mail } from "lucide-react";
+import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User, Mail, MessageSquareQuote } from "lucide-react";
 import { UserPublic } from "@/database";
 import { useNavigate } from "react-router-dom";
 import { useUnreadCount } from "@/database/messaging";
@@ -53,6 +53,13 @@ const Header = ({
           >
             <Search className="h-5 w-5" />
             <span>Search</span>
+          </button>
+          <button
+            onClick={() => navigate('/confessions')}
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+          >
+            <MessageSquareQuote className="h-5 w-5" />
+            <span>Confessions</span>
           </button>
           <button
             onClick={onMessagesClick || (() => navigate('/messages'))}

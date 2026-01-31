@@ -163,6 +163,18 @@ export interface CreateSavedPostData {
   post_id: number;
 }
 
+export interface SavedConfession {
+  id: number;
+  user_id: number;
+  confession_id: number;
+  created_at: string;
+}
+
+export interface CreateSavedConfessionData {
+  user_id: number;
+  confession_id: number;
+}
+
 export interface Follow {
   id: number;
   follower_id: number;
@@ -242,4 +254,52 @@ export interface CreateMessageData {
   content: string;
   message_type?: 'text' | 'image' | 'video';
   media_url?: string;
+}
+
+// Confession types
+export interface Confession {
+  id: number;
+  user_id?: number; // Optional because we don't return it to public feed for privacy
+  content: string;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+}
+
+export interface ConfessionLike {
+  id: number;
+  user_id: number;
+  confession_id: number;
+  created_at: string;
+}
+
+export interface ConfessionComment {
+  id: number;
+  user_id: number;
+  confession_id: number;
+  content: string;
+  created_at: string;
+}
+
+export interface ConfessionCommentWithUser extends ConfessionComment {
+  user: {
+    username: string;
+    avatar?: string;
+  };
+}
+
+export interface CreateConfessionData {
+  user_id: number;
+  content: string;
+}
+
+export interface CreateConfessionLikeData {
+  user_id: number;
+  confession_id: number;
+}
+
+export interface CreateConfessionCommentData {
+  user_id: number;
+  confession_id: number;
+  content: string;
 }

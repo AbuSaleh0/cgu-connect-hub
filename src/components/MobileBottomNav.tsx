@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, Home, Search, PlusSquare, User } from "lucide-react";
+import { Heart, Home, Search, PlusSquare, User, MessageSquareQuote } from "lucide-react";
 import { UserPublic } from "@/database";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -46,6 +46,10 @@ const MobileBottomNav = ({
     }
   };
 
+  const handleConfessionsClick = () => {
+    navigate('/confessions');
+  };
+
   const handleNotificationsClick = () => {
     if (onNotificationsClick) {
       onNotificationsClick();
@@ -75,19 +79,30 @@ const MobileBottomNav = ({
         <button
           onClick={handleHomeClick}
           className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/')
-              ? 'text-blue-600 bg-blue-50'
-              : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            ? 'text-blue-600 bg-blue-50'
+            : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
             }`}
         >
           <Home className="h-6 w-6" />
+        </button>
+
+        {/* Confessions */}
+        <button
+          onClick={handleConfessionsClick}
+          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/confessions')
+            ? 'text-blue-600 bg-blue-50'
+            : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            }`}
+        >
+          <MessageSquareQuote className="h-6 w-6" />
         </button>
 
         {/* Search */}
         <button
           onClick={handleExploreClick}
           className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/search')
-              ? 'text-blue-600 bg-blue-50'
-              : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            ? 'text-blue-600 bg-blue-50'
+            : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
             }`}
         >
           <Search className="h-6 w-6" />
@@ -97,8 +112,8 @@ const MobileBottomNav = ({
         <button
           onClick={handleCreateClick}
           className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/create')
-              ? 'text-blue-600 bg-blue-50'
-              : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            ? 'text-blue-600 bg-blue-50'
+            : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
             }`}
         >
           <PlusSquare className="h-6 w-6" />
@@ -108,8 +123,8 @@ const MobileBottomNav = ({
         <button
           onClick={handleNotificationsClick}
           className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/notifications')
-              ? 'text-blue-600 bg-blue-50'
-              : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+            ? 'text-blue-600 bg-blue-50'
+            : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
             }`}
         >
           <Heart className="h-6 w-6" />
@@ -120,8 +135,8 @@ const MobileBottomNav = ({
           <button
             onClick={handleProfileClick}
             className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive(`/${currentUser.username}`)
-                ? 'text-blue-600 bg-blue-50'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+              ? 'text-blue-600 bg-blue-50'
+              : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
               }`}
           >
             <Avatar className="h-6 w-6">
