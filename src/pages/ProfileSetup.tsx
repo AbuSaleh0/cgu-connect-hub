@@ -42,11 +42,17 @@ export default function ProfileSetup() {
             return;
         }
 
-        // Pre-fill email derived username if available
         if (user && !formData.username) {
             setFormData(prev => ({ ...prev, username: user.username || "" }));
         }
     }, [user, navigate]);
+
+    // Constructive scroll to error
+    useEffect(() => {
+        if (error) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [error]);
 
     const validateUsername = async (username: string) => {
         // Basic regex check
@@ -141,8 +147,8 @@ export default function ProfileSetup() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-            <div className="max-w-md w-full space-y-8 bg-card p-8 rounded-xl shadow-lg border">
+        <div className="min-h-screen py-10 px-4 flex flex-col justify-center sm:px-6 lg:px-8 bg-background">
+            <div className="max-w-md w-full mx-auto space-y-8 bg-card p-6 md:p-8 rounded-xl shadow-lg border">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold">Complete Your Profile</h1>
                     <p className="text-muted-foreground mt-2">Set up your password and details</p>

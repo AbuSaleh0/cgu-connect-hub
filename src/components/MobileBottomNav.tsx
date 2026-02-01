@@ -3,6 +3,8 @@ import { Heart, Home, Search, PlusSquare, User, MessageSquareQuote } from "lucid
 import { UserPublic } from "@/database";
 import { useNavigate, useLocation } from "react-router-dom";
 
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+
 interface MobileBottomNavProps {
   onHomeClick?: () => void;
   onExploreClick?: () => void;
@@ -22,6 +24,7 @@ const MobileBottomNav = ({
 }: MobileBottomNavProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const unreadCount = useUnreadNotifications(currentUser?.id);
 
   // Don't show on auth pages
   if (location.pathname === '/login' || location.pathname === '/signup' || !isAuthenticated) {
@@ -29,6 +32,8 @@ const MobileBottomNav = ({
   }
 
   const isActive = (path: string) => location.pathname === path;
+
+  // ... existing handlers ...
 
   const handleHomeClick = () => {
     if (onHomeClick) {
@@ -122,12 +127,17 @@ const MobileBottomNav = ({
         {/* Notifications */}
         <button
           onClick={handleNotificationsClick}
-          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${isActive('/notifications')
+          className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors relative ${isActive('/notifications')
             ? 'text-blue-600 bg-blue-50'
             : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
             }`}
         >
-          <Heart className="h-6 w-6" />
+          <div className="relative">
+            <Heart className="h-6 w-6" />
+            {unreadCount > 0 && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></div>
+            )}
+          </div>
         </button>
 
         {/* Profile */}

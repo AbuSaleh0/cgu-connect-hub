@@ -202,9 +202,32 @@ export class DatabaseService {
 
         if (existing) {
             await supabase.from('follows').delete().eq('id', existing.id);
+
+            // Remove relevant notification
+            // Remove relevant notification
+            const { error: deleteError } = await supabase.from('notifications')
+                .delete()
+                .eq('user_id', data.following_id)
+                .eq('type', 'follow')
+                .eq('from_user_id', data.follower_id);
+
+            if (deleteError) {
+                console.error("Error deleting notification:", deleteError);
+            }
+
             return false;
         } else {
             await supabase.from('follows').insert({ follower_id: data.follower_id, following_id: data.following_id });
+
+            // Create notification for the user being followed
+            await this.createNotification({
+                user_id: data.following_id, // The user receiving the notification
+                type: 'follow',
+                from_user_id: data.follower_id,
+                message: 'started following you',
+                read: false
+            });
+
             return true;
         }
     }
@@ -253,7 +276,10 @@ export class DatabaseService {
     async getUserNotifications(userId: number): Promise<Notification[]> {
         const { data, error } = await supabase
             .from('notifications')
-            .select('*')
+            .select(`
+                *,
+                from_user:users!notifications_from_user_id_fkey(username, avatar)
+            `)
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
@@ -263,6 +289,31 @@ export class DatabaseService {
         }
 
         return data || [];
+    }
+
+    async getUnreadNotificationCount(userId: number): Promise<number> {
+        const { count, error } = await supabase
+            .from('notifications')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('read', false);
+
+        if (error) {
+            console.error('Error counting unread notifications:', error);
+            return 0;
+        }
+
+        return count || 0;
+    }
+
+    async createNotification(notification: Omit<Notification, 'id' | 'created_at'>): Promise<void> {
+        const { error } = await supabase
+            .from('notifications')
+            .insert(notification);
+
+        if (error) {
+            console.error('Error creating notification:', error);
+        }
     }
 
     async markNotificationsAsRead(userId: number): Promise<void> {
@@ -716,6 +767,51 @@ export class DatabaseService {
             return [];
         }
         return data || [];
+    }
+
+    async verifyPassword(email: string, password: string): Promise<boolean> {
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (error || !data.user) {
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error verifying password:', error);
+            return false;
+        }
+    }
+
+    async updatePassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const { error } = await supabase.auth.updateUser({
+                password: newPassword
+            });
+
+            if (error) throw error;
+            return { success: true };
+        } catch (error: any) {
+            console.error('Error updating password:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async resetPasswordForEmail(email: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/change-password`,
+            });
+
+            if (error) throw error;
+            return { success: true };
+        } catch (error: any) {
+            console.error('Error sending reset password email:', error);
+            return { success: false, error: error.message };
+        }
     }
 
     async deleteConfession(confessionId: number): Promise<{ success: boolean; error?: string }> {

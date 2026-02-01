@@ -12,7 +12,6 @@ const Notifications = () => {
   const navigate = useNavigate();
   const currentUser = sessionManager.getCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [fromUsers, setFromUsers] = useState<{ [key: number]: User }>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,27 +21,14 @@ const Notifications = () => {
     }
 
     loadNotifications();
-  }, [currentUser, navigate]);
+  }, [currentUser?.id, navigate]);
 
   const loadNotifications = async () => {
     if (currentUser) {
       try {
+        setLoading(true);
         const userNotifications = await dbService.getUserNotifications(currentUser.id);
         setNotifications(userNotifications);
-
-        // Load from users for each notification
-        const users: { [key: number]: User } = {};
-        for (const notification of userNotifications) {
-          try {
-            const fromUser = await dbService.getUserById(notification.from_user_id);
-            if (fromUser) {
-              users[notification.from_user_id] = fromUser;
-            }
-          } catch (error) {
-            console.error(`Error loading user ${notification.from_user_id}:`, error);
-          }
-        }
-        setFromUsers(users);
 
         // Mark notifications as read
         await dbService.markNotificationsAsRead(currentUser.id);
@@ -70,9 +56,11 @@ const Notifications = () => {
   const handleNotificationClick = async (notification: Notification) => {
     try {
       if (notification.type === 'follow') {
-        const fromUser = fromUsers[notification.from_user_id];
-        if (fromUser) {
-          navigate(`/${fromUser.username}`);
+        // For follow, navigate to the user's profile
+        // @ts-ignore
+        const username = notification.from_user?.username;
+        if (username) {
+          navigate(`/${username}`);
         }
       } else if (notification.post_id) {
         navigate('/');
@@ -103,7 +91,12 @@ const Notifications = () => {
         <div className="space-y-4">
           {notifications.length > 0 ? (
             notifications.map((notification) => {
-              const fromUser = fromUsers[notification.from_user_id];
+              // @ts-ignore
+              const fromUser = notification.from_user;
+              const displayText = notification.type === 'follow'
+                ? `${fromUser?.username || 'Someone'} started following you`
+                : notification.message;
+
               return (
                 <div
                   key={notification.id}
@@ -114,7 +107,7 @@ const Notifications = () => {
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={fromUser?.avatar} />
                       <AvatarFallback>
-                        {fromUser?.display_name?.[0]?.toUpperCase() || fromUser?.username?.[0]?.toUpperCase()}
+                        {fromUser?.username?.[0]?.toUpperCase() || '?'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-1">
@@ -122,9 +115,16 @@ const Notifications = () => {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm">{notification.message}</p>
+                    <p className="text-sm">
+                      {/* If it's a follow notification, explicitly show the username structure requested */}
+                      {notification.type === 'follow' ? (
+                        <span><span className="font-semibold">{fromUser?.username}</span> started following you</span>
+                      ) : (
+                        notification.message
+                      )}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(notification.created_at).toLocaleDateString()}
+                      {dbService.formatTimestamp(notification.created_at)}
                     </p>
                   </div>
                 </div>

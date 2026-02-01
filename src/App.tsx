@@ -17,6 +17,7 @@ import Confessions from "./pages/Confessions";
 import MyConfessions from "./pages/MyConfessions";
 import SavedPosts from "./pages/SavedPosts";
 import NotFound from "./pages/NotFound";
+import ChangePassword from "./pages/ChangePassword";
 
 import { supabase } from "@/lib/supabase";
 import { dbService } from "@/database/service";
@@ -104,6 +105,7 @@ const App = () => {
             <Route path="/confessions" element={<Confessions />} />
             <Route path="/my-confessions" element={<MyConfessions />} />
             <Route path="/saved" element={<SavedPosts />} />
+            <Route path="/change-password" element={<ChangePassword />} />
             <Route path="/:username" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

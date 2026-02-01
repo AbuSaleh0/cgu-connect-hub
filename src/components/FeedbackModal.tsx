@@ -168,7 +168,7 @@ const FeedbackModal = ({ isOpen, onClose, currentUser }: FeedbackModalProps) => 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-full max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 mx-4 sm:mx-auto">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-[500px] max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-lg">
         <DialogHeader className="space-y-3 pb-4">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <MessageSquare className="h-5 w-5" />

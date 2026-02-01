@@ -5,6 +5,8 @@ import { UserPublic } from "@/database";
 import { useNavigate } from "react-router-dom";
 import { useUnreadCount } from "@/database/messaging";
 
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+
 interface HeaderProps {
   onLoginClick: () => void;
   onSignUpClick: () => void;
@@ -32,6 +34,8 @@ const Header = ({
 }: HeaderProps) => {
   const navigate = useNavigate();
   const unreadCount = useUnreadCount(currentUser?.id || null);
+  const unreadNotificationsCount = useUnreadNotifications(currentUser?.id || null);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 md:px-8">
@@ -79,9 +83,14 @@ const Header = ({
           </button>
           <button
             onClick={onNotificationsClick || (() => console.log('Notifications clicked'))}
-            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors relative"
           >
-            <Heart className="h-5 w-5" />
+            <div className="relative">
+              <Heart className="h-5 w-5" />
+              {unreadNotificationsCount > 0 && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></div>
+              )}
+            </div>
             <span>Notifications</span>
           </button>
           <button

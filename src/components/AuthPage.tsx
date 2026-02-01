@@ -26,6 +26,32 @@ const AuthPage = ({ mode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) 
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  // Forgot Password Data
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const { success, error } = await dbService.resetPasswordForEmail(resetEmail);
+      if (success) {
+        alert("Password reset email sent! Please check your inbox.");
+        setIsResetting(false);
+      } else {
+        throw new Error(error || "Failed to send reset email.");
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
@@ -123,44 +149,100 @@ const AuthPage = ({ mode, onBack, onSwitchMode, onAuthSuccess }: AuthPageProps) 
 
           {/* LOGIN FORM */}
           {mode === "login" && (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Email or Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    className="pl-9"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="student@cgu-odisha.ac.in or username"
-                    required
-                  />
+            <>
+              {isResetting ? (
+                <div className="space-y-4">
+                  <div className="text-center mb-4">
+                    <h3 className="font-semibold text-lg">Reset Password</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Enter your email to receive a password reset link.
+                    </p>
+                  </div>
+                  <form onSubmit={handleResetPassword} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          placeholder="student@cgu-odisha.ac.in"
+                          required
+                          type="email"
+                        />
+                      </div>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? "Sending..." : "Send Reset Link"}
+                    </Button>
+                    <div className="text-center">
+                      <Button
+                        type="button"
+                        variant="link"
+                        onClick={() => setIsResetting(false)}
+                        className="text-sm text-muted-foreground"
+                      >
+                        Back to Login
+                      </Button>
+                    </div>
+                  </form>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    className="pl-9 pr-10"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Logging in..." : "Log in"}
-              </Button>
-            </form>
+              ) : (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Email or Username</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        className="pl-9"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="student@cgu-odisha.ac.in or username"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Password</Label>
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="p-0 h-auto font-normal text-xs text-muted-foreground hover:text-primary"
+                        onClick={() => {
+                          setResetEmail(username.includes("@") ? username : "");
+                          setIsResetting(true);
+                          setError("");
+                        }}
+                      >
+                        Forgot password?
+                      </Button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        className="pl-9 pr-10"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Logging in..." : "Log in"}
+                  </Button>
+                </form>
+              )}
+            </>
           )}
 
           {/* SIGNUP (GOOGLE ONLY) */}
