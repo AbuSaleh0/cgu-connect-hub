@@ -84,11 +84,41 @@ export class DatabaseService {
 
     async toggleLike(userId: number, postId: number): Promise<boolean> {
         const { data: existing } = await supabase.from('likes').select('id').match({ user_id: userId, post_id: postId }).single();
+
+        // Fetch post owner to handle notifications
+        const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
+
         if (existing) {
             await supabase.from('likes').delete().eq('id', existing.id);
+
+            // Remove notification if it exists (and we have the post owner)
+            if (post) {
+                const { error: deleteError } = await supabase.from('notifications')
+                    .delete()
+                    .match({
+                        user_id: post.user_id, // Recipient (Post Owner)
+                        type: 'like',
+                        from_user_id: userId, // Sender (Liker)
+                        post_id: postId
+                    });
+
+                if (deleteError) console.error("Error deleting like notification:", deleteError);
+            }
             return false;
         } else {
             await supabase.from('likes').insert({ user_id: userId, post_id: postId });
+
+            // Create notification if post exists and user is not liking their own post
+            if (post && post.user_id !== userId) {
+                await this.createNotification({
+                    user_id: post.user_id,
+                    type: 'like',
+                    from_user_id: userId,
+                    post_id: postId,
+                    message: 'liked your post',
+                    read: false
+                });
+            }
             return true;
         }
     }
