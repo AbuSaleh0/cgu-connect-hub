@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,12 +11,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Bookmark, UserMinus, UserPlus, Flag, Edit3, Trash2, Pin } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Bookmark, UserMinus, UserPlus, Flag, Edit3, Trash2, Pin, MoreHorizontal } from "lucide-react";
 import { dbService } from "@/database";
 
 interface PostOptionsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
   post: {
     id: string;
     username: string;
@@ -28,7 +32,7 @@ interface PostOptionsModalProps {
   onPostUpdate?: (action?: string) => void;
 }
 
-const PostOptionsModal = ({ isOpen, onClose, post, currentUser, isOwnPost, onPostUpdate }: PostOptionsModalProps) => {
+const PostOptionsModal = ({ post, currentUser, isOwnPost, onPostUpdate }: PostOptionsModalProps) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editCaption, setEditCaption] = useState(post.caption);
@@ -38,36 +42,31 @@ const PostOptionsModal = ({ isOpen, onClose, post, currentUser, isOwnPost, onPos
 
   // Load initial states
   useEffect(() => {
-    if (currentUser && post.id && isOpen) {
-      setIsSaved(dbService.isPostSaved(currentUser.id, Number(post.id)));
-      setEditCaption(post.caption); // Reset caption when modal opens
-      
+    if (currentUser && post.id) {
+      dbService.isPostSaved(currentUser.id, Number(post.id)).then(setIsSaved);
+      setEditCaption(post.caption);
+
       if (!isOwnPost) {
-        setIsFollowing(dbService.isFollowingUsername(currentUser.id, post.username));
+        dbService.isFollowingUsername(currentUser.id, post.username).then(setIsFollowing);
       } else {
         // Check if post is pinned
-        try {
-          const postData = dbService.getPostById(Number(post.id));
-          setIsPinned(postData?.pinned === 1);
-        } catch (error) {
-          console.error('Error checking pin status:', error);
-        }
+        dbService.getPostById(Number(post.id)).then(postData => {
+          setIsPinned(!!postData?.pinned);
+        });
       }
     }
-  }, [currentUser, post.id, post.username, post.caption, isOwnPost, isOpen]);
-
-  if (!isOpen) return null;
+  }, [currentUser, post.id, post.username, post.caption, isOwnPost]);
 
   const handleSave = () => {
     if (!currentUser) return;
     try {
-      const newSaveState = dbService.toggleSavePost({
+      dbService.toggleSavePost({
         user_id: currentUser.id,
         post_id: Number(post.id)
+      }).then(newSaveState => {
+        setIsSaved(newSaveState);
+        onPostUpdate?.('save');
       });
-      setIsSaved(newSaveState);
-      onClose();
-      onPostUpdate?.('save');
     } catch (error) {
       console.error('Error saving post:', error);
     }
@@ -85,7 +84,6 @@ const PostOptionsModal = ({ isOpen, onClose, post, currentUser, isOwnPost, onPos
         });
       }
       setIsFollowing(!isFollowing);
-      onClose();
       onPostUpdate?.('follow');
     } catch (error) {
       console.error('Error following/unfollowing user:', error);
@@ -96,7 +94,6 @@ const PostOptionsModal = ({ isOpen, onClose, post, currentUser, isOwnPost, onPos
     try {
       dbService.updatePostCaption(Number(post.id), editCaption);
       setShowEditModal(false);
-      onClose();
       onPostUpdate?.('edit');
     } catch (error) {
       console.error('Error updating caption:', error);
@@ -107,7 +104,6 @@ const PostOptionsModal = ({ isOpen, onClose, post, currentUser, isOwnPost, onPos
     try {
       dbService.deletePost(Number(post.id));
       setShowDeleteConfirm(false);
-      onClose();
       onPostUpdate?.('delete');
     } catch (error) {
       console.error('Error deleting post:', error);
@@ -116,10 +112,10 @@ const PostOptionsModal = ({ isOpen, onClose, post, currentUser, isOwnPost, onPos
 
   const handlePin = () => {
     try {
-      const newPinnedState = dbService.togglePinPost(Number(post.id));
-      setIsPinned(newPinnedState);
-      onClose();
-      onPostUpdate?.('pin');
+      dbService.togglePinPost(Number(post.id)).then(newPinnedState => {
+        setIsPinned(newPinnedState);
+        onPostUpdate?.('pin');
+      });
     } catch (error) {
       console.error('Error pinning post:', error);
     }
@@ -127,129 +123,61 @@ const PostOptionsModal = ({ isOpen, onClose, post, currentUser, isOwnPost, onPos
 
   const handleReport = () => {
     alert('Post reported. Thank you for helping keep our community safe.');
-    onClose();
   };
 
   return (
     <>
-      {/* Options Modal */}
-      {!showEditModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" 
-          onClick={onClose}
-          style={{ pointerEvents: 'auto' }}
-        >
-          <div 
-            className="bg-white rounded-lg w-80 max-w-sm" 
-            onClick={(e) => e.stopPropagation()}
-            style={{ pointerEvents: 'auto' }}
-          >
-            <div className="py-2">
-            {isOwnPost ? (
-              // Own post options
-              <>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSave();
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <Bookmark className="h-4 w-4" />
-                  {isSaved ? 'Unsave' : 'Save'}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowEditModal(true);
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <Edit3 className="h-4 w-4" />
-                  Edit Caption
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handlePin();
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <Pin className="h-4 w-4" />
-                  {isPinned ? 'Unpin from Grid' : 'Pin to Grid'}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowDeleteConfirm(true);
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete Post
-                </button>
-              </>
-            ) : (
-              // Other user's post options
-              <>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSave();
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <Bookmark className="h-4 w-4" />
-                  {isSaved ? 'Unsave' : 'Save'}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleFollow();
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
-                >
-                  {isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                  {isFollowing ? 'Unfollow' : 'Follow'} @{post.username}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleReport();
-                  }}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 text-red-600"
-                >
-                  <Flag className="h-4 w-4" />
-                  Report
-                </button>
-              </>
-            )}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }}
-              className="w-full px-4 py-3 text-left hover:bg-gray-50 text-gray-500"
-            >
-              Cancel
-            </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <MoreHorizontal className="h-5 w-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          {isOwnPost ? (
+            <>
+              <DropdownMenuItem onClick={handleSave}>
+                <Bookmark className="mr-2 h-4 w-4" />
+                {isSaved ? 'Unsave' : 'Save'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                <Edit3 className="mr-2 h-4 w-4" />
+                Edit Caption
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePin}>
+                <Pin className="mr-2 h-4 w-4" />
+                {isPinned ? 'Unpin' : 'Pin'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-red-600 focus:text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Post
+              </DropdownMenuItem>
+            </>
+          ) : (
+            <>
+              <DropdownMenuItem onClick={handleSave}>
+                <Bookmark className="mr-2 h-4 w-4" />
+                {isSaved ? 'Unsave' : 'Save'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleFollow}>
+                {isFollowing ? <UserMinus className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                {isFollowing ? 'Unfollow' : 'Follow'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleReport} className="text-red-600 focus:text-red-600">
+                <Flag className="mr-2 h-4 w-4" />
+                Report
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* Edit Caption Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Edit Caption</h3>
             <Textarea
               value={editCaption}
@@ -260,12 +188,12 @@ const PostOptionsModal = ({ isOpen, onClose, post, currentUser, isOwnPost, onPos
               autoFocus
             />
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowEditModal(false);
-                  setEditCaption(post.caption); // Reset on cancel
-                }} 
+                  setEditCaption(post.caption);
+                }}
                 className="flex-1"
               >
                 Cancel

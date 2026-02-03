@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Settings, UserPlus, MessageCircle, User, Lock, Bookmark, LogOut, Menu, X, MessageSquare, Heart, Pin, MessageSquareQuote } from "lucide-react";
+import { ArrowLeft, Settings, UserPlus, MessageCircle, User, Lock, Bookmark, LogOut, Menu, X, MessageSquare, Heart, Pin, MessageSquareQuote, Layers } from "lucide-react";
 import { dbService } from "@/database";
 import { sessionManager } from "@/lib/session";
 import { UserPublic, PostWithUser } from "@/database/types";
@@ -515,10 +515,17 @@ const Profile = () => {
                     onClick={() => handlePostClick(post)}
                   >
                     <img
-                      src={post.image}
+                      src={post.images && post.images.length > 0 ? post.images[0] : post.image}
                       alt={post.caption || "Post"}
                       className="w-full h-full object-cover rounded-lg transition-all duration-300 group-hover:brightness-75"
                     />
+
+                    {/* Multiple images indicator */}
+                    {post.images && post.images.length > 1 && (
+                      <div className="absolute top-2 right-2 p-1 bg-black/60 rounded-full text-white">
+                        <Layers className="h-4 w-4" />
+                      </div>
+                    )}
 
                     {/* Pin icon for pinned posts */}
                     {post.pinned && (

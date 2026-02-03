@@ -6,6 +6,7 @@ export interface PostCardData {
   username: string;
   userAvatar: string;
   image: string;
+  images?: string[];
   caption: string;
   likes: number;
   comments: number;
@@ -19,6 +20,7 @@ export const convertDbPostToCardData = (dbPost: PostWithUser, formatTimestamp: (
     username: dbPost.username,
     userAvatar: dbPost.user_avatar || '',
     image: dbPost.image,
+    images: dbPost.images && dbPost.images.length > 0 ? dbPost.images : [dbPost.image],
     caption: dbPost.caption || '',
     likes: dbPost.likes_count,
     comments: dbPost.comments_count,

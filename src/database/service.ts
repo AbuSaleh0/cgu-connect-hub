@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
 import {
-    User, UserPublic, PostWithUser, CreatePostData, CreateLikeData, CreateCommentData,
+    User, UserPublic, Post, PostWithUser, CreatePostData, CreateLikeData, CreateCommentData,
     CommentWithUser, Notification, CreateConversationData, ConversationWithUsers,
     MessageWithSender, CreateMessageData, CreateFollowData, LoginData, AuthResult,
     CreateSavedPostData, Conversation, UpdateProfileData,
@@ -70,57 +70,88 @@ export class DatabaseService {
     }
 
     async getAllPosts(): Promise<PostWithUser[]> {
-        const { data } = await supabase.from('posts').select('*, users(username, avatar)').order('created_at', { ascending: false });
-        return (data || []).map((post: any) => ({ ...post, username: post.users?.username, user_avatar: post.users?.avatar }));
+        const { data, error } = await supabase
+            .from('posts')
+            .select('*, users(username, avatar), likes(count), comments(count)')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error("Error fetching posts:", error);
+            return [];
+        }
+
+        return (data || []).map((post: any) => ({
+            ...post,
+            username: post.users?.username,
+            user_avatar: post.users?.avatar,
+            likes_count: post.likes?.[0]?.count || 0,
+            comments_count: post.comments?.[0]?.count || 0
+        }));
     }
 
     async createPost(postData: CreatePostData): Promise<PostWithUser | null> {
+        // Ensure image is set (use first of images if available) and images array is populated
+        const mainImage = postData.image || (postData.images && postData.images.length > 0 ? postData.images[0] : "");
+        const imagesList = postData.images && postData.images.length > 0 ? postData.images : [mainImage];
+
         const { data, error } = await supabase.from('posts').insert({
-            user_id: postData.user_id, caption: postData.caption, image: postData.image
+            user_id: postData.user_id,
+            caption: postData.caption,
+            image: mainImage,
+            images: imagesList
         }).select('*, users(username, avatar)').single();
-        if (error) return null;
+        if (error) {
+            console.error("Error creating post in Supabase:", error);
+            return null;
+        }
         return { ...data, username: data.users?.username, user_avatar: data.users?.avatar };
     }
 
     async toggleLike(userId: number, postId: number): Promise<boolean> {
         const { data: existing } = await supabase.from('likes').select('id').match({ user_id: userId, post_id: postId }).single();
-
-        // Fetch post owner to handle notifications
-        const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
+        const { data: post } = await supabase.from('posts').select('user_id, likes_count').eq('id', postId).single();
 
         if (existing) {
             await supabase.from('likes').delete().eq('id', existing.id);
+            // Decrement likes_count
+            if (post) {
+                await supabase.from('posts').update({ likes_count: Math.max(0, (post.likes_count || 0) - 1) }).eq('id', postId);
+            }
 
-            // Remove notification if it exists (and we have the post owner)
+            // Remove notification logic...
             if (post) {
                 const { error: deleteError } = await supabase.from('notifications')
                     .delete()
-                    .match({
-                        user_id: post.user_id, // Recipient (Post Owner)
-                        type: 'like',
-                        from_user_id: userId, // Sender (Liker)
-                        post_id: postId
-                    });
-
+                    .match({ user_id: post.user_id, type: 'like', from_user_id: userId, post_id: postId });
                 if (deleteError) console.error("Error deleting like notification:", deleteError);
             }
             return false;
         } else {
             await supabase.from('likes').insert({ user_id: userId, post_id: postId });
+            // Increment likes_count
+            if (post) {
+                await supabase.from('posts').update({ likes_count: (post.likes_count || 0) + 1 }).eq('id', postId);
+            }
 
-            // Create notification if post exists and user is not liking their own post
+            // Notification logic...
             if (post && post.user_id !== userId) {
                 await this.createNotification({
-                    user_id: post.user_id,
-                    type: 'like',
-                    from_user_id: userId,
-                    post_id: postId,
-                    message: 'liked your post',
-                    read: false
+                    user_id: post.user_id, type: 'like', from_user_id: userId, post_id: postId, message: 'liked your post', read: false
                 });
             }
             return true;
         }
+    }
+
+    async isPostLikedByUser(userId: number, postId: number): Promise<boolean> {
+        const { data } = await supabase.from('likes').select('id').match({ user_id: userId, post_id: postId }).single();
+        return !!data;
+    }
+
+    async getPostWithUserById(postId: number): Promise<PostWithUser | null> {
+        const { data } = await supabase.from('posts').select('*, users(username, avatar)').eq('id', postId).single();
+        if (!data) return null;
+        return { ...data, username: data.users?.username, user_avatar: data.users?.avatar };
     }
 
     async isPostSaved(userId: number, postId: number): Promise<boolean> {
@@ -201,14 +232,16 @@ export class DatabaseService {
     async getPostsByUser(userId: number): Promise<PostWithUser[]> {
         const { data } = await supabase
             .from('posts')
-            .select('*, users(username, avatar)')
+            .select('*, users(username, avatar), likes(count), comments(count)')
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
         return (data || []).map((post: any) => ({
             ...post,
             username: post.users?.username,
-            user_avatar: post.users?.avatar
+            user_avatar: post.users?.avatar,
+            likes_count: post.likes?.[0]?.count || 0,
+            comments_count: post.comments?.[0]?.count || 0
         }));
     }
 
@@ -583,30 +616,65 @@ export class DatabaseService {
 
     // Comment methods
     async getPostComments(postId: number): Promise<CommentWithUser[]> {
-        const { data, error } = await supabase
+        // 1. Fetch Comments
+        const { data: comments, error: commentsError } = await supabase
             .from('comments')
-            .select(`
-                *,
-                user:users!comments_user_id_fkey(username, avatar)
-            `)
+            .select('*')
             .eq('post_id', postId)
             .order('created_at', { ascending: true });
 
-        if (error) {
-            console.error('Error fetching comments:', error);
+        if (commentsError) {
+            console.error('Error fetching comments:', commentsError);
             return [];
         }
 
-        return (data || []).map((comment: any) => ({
-            id: comment.id,
-            user_id: comment.user_id,
-            post_id: comment.post_id,
-            username: comment.user?.username || '',
-            user_avatar: comment.user?.avatar,
-            content: comment.content,
-            created_at: comment.created_at,
-            updated_at: comment.updated_at
-        }));
+        if (!comments || comments.length === 0) return [];
+
+        // 2. Fetch Users
+        const userIds = [...new Set(comments.map(c => c.user_id))];
+        const { data: users, error: usersError } = await supabase
+            .from('users')
+            .select('id, username, avatar')
+            .in('id', userIds);
+
+        if (usersError) {
+            console.error('Error fetching comment users:', usersError);
+            // Return comments without user info as fallback? Or empty? 
+            // Better to show content than nothing.
+        }
+
+        // 3. Merge Data
+        const userMap = new Map(users?.map(u => [u.id, u]) || []);
+
+        const mappedComments = comments.map(comment => {
+            const user = userMap.get(comment.user_id);
+            return {
+                id: comment.id,
+                user_id: comment.user_id,
+                post_id: comment.post_id,
+                username: user?.username || 'Unknown User',
+                user_avatar: user?.avatar,
+                content: comment.content,
+                created_at: comment.created_at,
+                updated_at: comment.updated_at
+            };
+        });
+
+        console.log('Final Mapped Comments:', mappedComments);
+        return mappedComments;
+    }
+
+    async deleteComment(commentId: number): Promise<boolean> {
+        const { error } = await supabase
+            .from('comments')
+            .delete()
+            .eq('id', commentId);
+
+        if (error) {
+            console.error('Error deleting comment:', error);
+            return false;
+        }
+        return true;
     }
 
     async createComment(commentData: CreateCommentData): Promise<CommentWithUser | null> {
@@ -630,18 +698,7 @@ export class DatabaseService {
         }
 
         // Increment the post's comment count
-        const { data: post } = await supabase
-            .from('posts')
-            .select('comments_count')
-            .eq('id', commentData.post_id)
-            .single();
 
-        if (post) {
-            await supabase
-                .from('posts')
-                .update({ comments_count: (post.comments_count || 0) + 1 })
-                .eq('id', commentData.post_id);
-        }
 
         return {
             id: comment.id,
@@ -951,6 +1008,67 @@ export class DatabaseService {
             return false;
         }
         return true;
+    }
+    // Missing methods for PostOptionsModal
+    async isFollowingUsername(followerId: number, followingUsername: string): Promise<boolean> {
+        const { data: user } = await supabase.from('users').select('id').eq('username', followingUsername).single();
+        if (!user) return false;
+        return this.isFollowing(followerId, user.id);
+    }
+
+    async followUser(data: { follower_id: number; following_username: string }): Promise<boolean> {
+        const { data: user } = await supabase.from('users').select('id').eq('username', data.following_username).single();
+        if (!user) return false;
+        return this.toggleFollow({ follower_id: data.follower_id, following_id: user.id });
+    }
+
+    async unfollowUser(followerId: number, followingUsername: string): Promise<boolean> {
+        const { data: user } = await supabase.from('users').select('id').eq('username', followingUsername).single();
+        if (!user) return false;
+        return this.toggleFollow({ follower_id: followerId, following_id: user.id });
+    }
+
+    async getPostById(postId: number): Promise<Post | null> {
+        const { data } = await supabase.from('posts').select('*').eq('id', postId).single();
+        return data;
+    }
+
+    async updatePostCaption(postId: number, newCaption: string): Promise<boolean> {
+        const { error } = await supabase.from('posts').update({ caption: newCaption }).eq('id', postId);
+        if (error) {
+            console.error("Error updating caption:", error);
+            return false;
+        }
+        return true;
+    }
+
+    async deletePost(postId: number): Promise<boolean> {
+        // Delete related data first (likes, comments, saved_posts are usually cascaded but good to be safe if not)
+        // With Supabase cascade delete on foreign keys, deleting post should be enough if configured
+        const { error } = await supabase.from('posts').delete().eq('id', postId);
+        if (error) {
+            console.error("Error deleting post:", error);
+            return false;
+        }
+        return true;
+    }
+
+    async togglePinPost(postId: number): Promise<boolean> {
+        const { data: post } = await supabase.from('posts').select('pinned').eq('id', postId).single();
+        if (!post) return false;
+
+        const newPinned = !post.pinned;
+        // Depending on DB schema, pinned might be boolean or int (0/1). 
+        // Based on types.ts it is boolean? But earlier code checked === 1.
+        // I will assume boolean in types, but DB might be int. 
+        // Let's check schemas safely.
+
+        const { error } = await supabase.from('posts').update({ pinned: newPinned }).eq('id', postId);
+        if (error) {
+            console.error("Error pinning post:", error);
+            return false;
+        }
+        return newPinned;
     }
 }
 

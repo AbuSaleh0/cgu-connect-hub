@@ -35,6 +35,7 @@ export interface Post {
   id: number;
   user_id: number;
   image: string;
+  images?: string[];
   caption?: string;
   likes_count: number;
   comments_count: number;
@@ -98,6 +99,7 @@ export interface AuthResult {
 export interface CreatePostData {
   user_id: number;
   image: string;
+  images?: string[];
   caption?: string;
 }
 

@@ -1,5 +1,5 @@
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from "lucide-react";
-import { useState, useEffect, FC } from "react";
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useState, useEffect, FC } from "react";
 import { useNavigate } from "react-router-dom";
 import CommentModal from "./CommentModal";
 import ShareModal from "./ShareModal";
@@ -11,6 +11,7 @@ interface Post {
   username: string;
   userAvatar: string;
   image: string;
+  images?: string[];
   caption: string;
   likes: number;
   comments: number;
@@ -30,8 +31,16 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
   const [likeCount, setLikeCount] = useState(post.likes);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  // Carousel State
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const images = post.images && post.images.length > 0 ? post.images : [post.image];
+  const hasMultipleImages = images.length > 1;
+
+  // Swipe State
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   const handleUsernameClick = () => {
     navigate(`/${post.username}`);
@@ -39,16 +48,21 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
 
   // Check if post is saved on component mount
   useEffect(() => {
-    const checkSaveStatus = async () => {
+    const checkStatus = async () => {
       if (currentUser && isAuthenticated) {
         try {
-          setIsSaved(dbService.isPostSaved(currentUser.id, Number(post.id)));
+          const [saved, liked] = await Promise.all([
+            dbService.isPostSaved(currentUser.id, Number(post.id)),
+            dbService.isPostLikedByUser(currentUser.id, Number(post.id))
+          ]);
+          setIsSaved(saved);
+          setIsLiked(liked);
         } catch (error) {
-          console.error('Error checking save status:', error);
+          console.error('Error checking status:', error);
         }
       }
     };
-    checkSaveStatus();
+    checkStatus();
   }, [currentUser, isAuthenticated, post.id]);
 
   const handleLike = () => {
@@ -61,8 +75,11 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
     setIsLiked(!isLiked);
     setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
 
-    // Here you would typically call an API or database function
-    console.log(`${isLiked ? 'Unliked' : 'Liked'} post ${post.id} by ${currentUser?.username}`);
+    // Call API (Optimistic update)
+    dbService.toggleLike(currentUser!.id, Number(post.id)).catch(err => {
+      console.error("Error toggling like:", err);
+      // Revert on error if needed
+    });
   };
 
   const handleComment = () => {
@@ -101,78 +118,173 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
       });
 
       setIsSaved(newSaveState);
-      console.log(`${newSaveState ? 'Saved' : 'Unsaved'} post ${post.id}`);
     } catch (error) {
       console.error('Error saving post:', error);
     }
   };
 
+  // Carousel Handlers
+  const nextImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (currentImageIndex < images.length - 1) {
+      setCurrentImageIndex(prev => prev + 1);
+    }
+  };
+
+  const prevImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (currentImageIndex > 0) {
+      setCurrentImageIndex(prev => prev - 1);
+    }
+  };
+
+  // Touch Handlers for Swipe
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentImageIndex < images.length - 1) {
+      nextImage();
+    }
+
+    if (isRightSwipe && currentImageIndex > 0) {
+      prevImage();
+    }
+  };
+
   return (
-    <article className="bg-card rounded-lg shadow-card hover:shadow-card-hover transition-shadow">
+    <article className="bg-card rounded-lg shadow-card hover:shadow-card-hover transition-shadow text-card-foreground">
       {/* Post Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full gradient-primary" />
+          <div className="relative h-10 w-10 overflow-hidden rounded-full">
+            {post.userAvatar ? (
+              <img src={post.userAvatar} alt={post.username} className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full bg-gradient-to-tr from-pink-500 to-yellow-500" />
+            )}
+          </div>
           <div>
             <button
               onClick={handleUsernameClick}
-              className="font-semibold text-sm hover:text-gray-600 transition-colors text-left"
+              className="font-semibold text-sm hover:text-muted-foreground transition-colors text-left"
             >
               {post.username}
             </button>
             <p className="text-xs text-muted-foreground">{post.timestamp}</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowOptionsModal(true)}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <MoreHorizontal className="h-5 w-5" />
-        </button>
+        <div onClick={(e) => e.stopPropagation()}>
+          <PostOptionsModal
+            post={post}
+            currentUser={currentUser}
+            isOwnPost={currentUser?.username === post.username}
+            onPostUpdate={onInteractionClick} // Or specific update handler
+          />
+        </div>
       </div>
 
-      {/* Post Media */}
-      <div className="relative w-full bg-muted flex items-center justify-center">
+      {/* Post Media (Carousel) */}
+      <div
+        className="relative w-full bg-muted flex items-center justify-center overflow-hidden aspect-square sm:aspect-auto sm:max-h-[600px] select-none"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <img
-          src={post.image}
-          alt={post.caption || "Post"}
-          className="w-full h-auto object-cover max-h-[600px]"
+          src={images[currentImageIndex]}
+          alt={post.caption || `Post image ${currentImageIndex + 1}`}
+          className="w-full h-full object-cover"
         />
+
+        {/* Navigation Arrows (Desktop) */}
+        {hasMultipleImages && (
+          <>
+            {currentImageIndex > 0 && (
+              <button
+                onClick={prevImage}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70 transition-colors hidden sm:flex"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            )}
+            {currentImageIndex < images.length - 1 && (
+              <button
+                onClick={nextImage}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70 transition-colors hidden sm:flex"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            )}
+
+            {/* Pagination Dots (All devices) */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+              {images.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentImageIndex
+                    ? 'w-4 bg-white'
+                    : 'w-1.5 bg-white/50'
+                    }`}
+                />
+              ))}
+            </div>
+
+            {/* Image Counter Badge */}
+            <div className="absolute top-4 right-4 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+              {currentImageIndex + 1}/{images.length}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Post Actions */}
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             <button
               onClick={handleLike}
-              className={`transition-colors ${isAuthenticated
+              className={`flex items-center gap-2 transition-colors ${isAuthenticated
                 ? 'text-foreground hover:text-destructive cursor-pointer'
                 : 'text-muted-foreground hover:text-foreground cursor-pointer'
-                }`}
+                } group`}
               title={isAuthenticated ? 'Like this post' : 'Login to like'}
             >
-              <Heart className={`h-6 w-6 ${isLiked ? 'fill-destructive text-destructive' : ''}`} />
+              <Heart className={`h-6 w-6 ${isLiked ? 'fill-destructive text-destructive' : 'group-hover:scale-110 transition-transform'}`} />
+              <span className="text-sm font-semibold">{likeCount.toLocaleString()}</span>
             </button>
             <button
               onClick={handleComment}
-              className={`transition-colors ${isAuthenticated
+              className={`flex items-center gap-2 transition-colors ${isAuthenticated
                 ? 'text-foreground hover:text-accent cursor-pointer'
                 : 'text-muted-foreground hover:text-foreground cursor-pointer'
-                }`}
+                } group`}
               title={isAuthenticated ? 'Comment on this post' : 'Login to comment'}
             >
-              <MessageCircle className="h-6 w-6" />
+              <MessageCircle className="h-6 w-6 group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-semibold">{post.comments}</span>
             </button>
             <button
               onClick={handleShare}
-              className={`transition-colors ${isAuthenticated
+              className={`flex items-center gap-2 transition-colors ${isAuthenticated
                 ? 'text-foreground hover:text-accent cursor-pointer'
                 : 'text-muted-foreground hover:text-foreground cursor-pointer'
-                }`}
+                } group`}
               title={isAuthenticated ? 'Share this post' : 'Login to share'}
             >
-              <Send className="h-6 w-6" />
+              <Send className="h-6 w-6 group-hover:scale-110 transition-transform" />
             </button>
           </div>
           <button
@@ -188,29 +300,16 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
         </div>
 
         <div>
-          <p className="font-semibold text-sm">{likeCount.toLocaleString()} likes</p>
-        </div>
-
-        <div>
           <p className="text-sm">
             <button
               onClick={handleUsernameClick}
-              className="font-semibold mr-2 hover:text-gray-600 transition-colors"
+              className="font-semibold mr-2 hover:text-muted-foreground transition-colors"
             >
               {post.username}
             </button>
             {post.caption}
           </p>
         </div>
-
-        {post.comments > 0 && (
-          <button
-            onClick={handleComment}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            View all {post.comments} comments
-          </button>
-        )}
       </div>
 
       {/* Comment Modal */}
@@ -230,28 +329,7 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
         postUsername={post.username}
       />
 
-      {/* Post Options Modal */}
-      <PostOptionsModal
-        isOpen={showOptionsModal}
-        onClose={() => {
-          setShowOptionsModal(false);
-          // Refresh saved state after modal closes
-          if (currentUser && isAuthenticated) {
-            setIsSaved(dbService.isPostSaved(currentUser.id, Number(post.id)));
-          }
-        }}
-        post={{
-          id: post.id,
-          username: post.username,
-          caption: post.caption
-        }}
-        currentUser={currentUser}
-        isOwnPost={currentUser?.username === post.username}
-        onPostUpdate={() => {
-          // Refresh the page to get updated data
-          window.location.reload();
-        }}
-      />
+
     </article>
   );
 };

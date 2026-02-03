@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Upload, Check, Crop } from "lucide-react";
+import { ArrowLeft, Upload, Check, Crop, X, Plus, Trash2 } from "lucide-react";
 import { dbService } from "@/database";
 import { sessionManager } from "@/lib/session";
 import { useNavigate } from "react-router-dom";
@@ -29,7 +29,7 @@ const CreatePost = () => {
     }
   }, [currentUser, navigate]);
 
-  const [image, setImage] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [originalImage, setOriginalImage] = useState("");
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
@@ -157,6 +157,11 @@ const CreatePost = () => {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (images.length >= 5) {
+        setError("Maximum of 5 images allowed");
+        return;
+      }
+
       const fileType = file.type;
 
       if (fileType.startsWith('image/')) {
@@ -205,14 +210,17 @@ const CreatePost = () => {
         setError("Please select an image file");
       }
     }
+    // Reset input value to allow selecting the same file again if needed
+    event.target.value = "";
   };
 
   const handleCropConfirm = async () => {
     if (originalImage) {
       try {
         const croppedImage = await cropImageWithArea(originalImage);
-        setImage(croppedImage);
+        setImages([...images, croppedImage]);
         setShowCropOptions(false);
+        setOriginalImage("");
       } catch (error) {
         console.error("Error cropping image:", error);
         setError("Failed to crop image");
@@ -225,29 +233,43 @@ const CreatePost = () => {
     updateCropArea(ratio, imageDimensions.width, imageDimensions.height);
   };
 
-  const handleCropDrag = (e: React.MouseEvent, type: 'move' | 'resize') => {
-    const startX = e.clientX;
-    const startY = e.clientY;
+  const handleInteractionStart = (clientX: number, clientY: number) => {
+    const startX = clientX;
+    const startY = clientY;
     const startCrop = { ...cropArea };
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      const deltaY = moveEvent.clientY - startY;
+    const handleMove = (moveX: number, moveY: number) => {
+      const deltaX = moveX - startX;
+      const deltaY = moveY - startY;
 
-      if (type === 'move') {
-        const newX = Math.max(0, Math.min(imageDimensions.width - cropArea.width, startCrop.x + deltaX));
-        const newY = Math.max(0, Math.min(imageDimensions.height - cropArea.height, startCrop.y + deltaY));
-        setCropArea(prev => ({ ...prev, x: newX, y: newY }));
+      const newX = Math.max(0, Math.min(imageDimensions.width - cropArea.width, startCrop.x + deltaX));
+      const newY = Math.max(0, Math.min(imageDimensions.height - cropArea.height, startCrop.y + deltaY));
+      setCropArea(prev => ({ ...prev, x: newX, y: newY }));
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault();
+      handleMove(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length > 0) {
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
 
-    const handleMouseUp = () => {
+    const handleEnd = () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleEnd);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
   };
 
   const handleCropCancel = () => {
@@ -255,9 +277,15 @@ const CreatePost = () => {
     setOriginalImage("");
   };
 
+  const removeImage = (index: number) => {
+    const newImages = [...images];
+    newImages.splice(index, 1);
+    setImages(newImages);
+  };
+
   const handleCreatePost = async () => {
-    if (!currentUser || !image) {
-      console.log("Missing user or image:", { user: !!currentUser, image: !!image });
+    if (!currentUser || images.length === 0) {
+      console.log("Missing user or images:", { user: !!currentUser, imagesCount: images.length });
       return;
     }
 
@@ -268,13 +296,14 @@ const CreatePost = () => {
     try {
       console.log("Creating post for user:", currentUser.username, "with data:", {
         user_id: currentUser.id,
-        image: image.substring(0, 50) + "...",
+        imagesCount: images.length,
         caption
       });
 
       const newPost = await dbService.createPost({
         user_id: currentUser.id,
-        image: image,
+        image: "", // Service will handle this
+        images: images,
         caption
       });
 
@@ -289,23 +318,23 @@ const CreatePost = () => {
         console.error("Post creation returned invalid result:", newPost);
         setError("Failed to create post. Invalid response from database.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating post:", error);
       console.error("Error details:", {
         message: error.message,
         stack: error.stack,
         currentUser: currentUser?.id,
-        imageExists: !!image,
+        imagesCount: images.length,
         captionLength: caption?.length || 0
       });
 
       // Provide specific error messages for different types of errors
-      if (error.message.includes("quota")) {
+      if (error.message && error.message.includes("quota")) {
         setError("Storage full! Your image is too large or browser storage is full. Try using a smaller image or clear browser data.");
-      } else if (error.message.includes("Storage")) {
+      } else if (error.message && error.message.includes("Storage")) {
         setError("Storage error: " + error.message);
       } else {
-        setError("Failed to create post. Error: " + error.message);
+        setError("Failed to create post. Error: " + (error.message || "Unknown error"));
       }
     } finally {
       setLoading(false);
@@ -334,6 +363,9 @@ const CreatePost = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-xl font-semibold">Create Post</h1>
+          <div className="ml-auto text-sm text-muted-foreground">
+            {images.length}/5 images
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -352,62 +384,107 @@ const CreatePost = () => {
             </Alert>
           )}
 
+          <div className="space-y-3">
+            <Label>Photos</Label>
 
-          <div className="space-y-2">
-            <Label>Photo</Label>
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center relative">
-              {image ? (
-                <div className="space-y-2">
-                  <img src={image} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
-                  <p className="text-xs text-green-600">
-                    ✓ Image cropped to {selectedRatio} ratio and optimized
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setImage("");
-                      setOriginalImage("");
-                    }}
-                  >
-                    Change Photo
-                  </Button>
-                </div>
-              ) : (
+            {/* Image Previews */}
+            {images.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {images.map((img, index) => (
+                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden group border">
+                    <img src={img} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      type="button"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add Button Placeholder Loop if less than 5 */}
+                {images.length < 5 && (
+                  <label className="border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors aspect-square">
+                    <Plus className="h-8 w-8 text-muted-foreground mb-2" />
+                    <span className="text-xs text-muted-foreground">Add</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+
+            {/* Initial Upload Area (only if no images) */}
+            {images.length === 0 && (
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center relative">
                 <div className="space-y-2">
                   <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
                   <p className="text-muted-foreground">Click to upload a photo</p>
                   <p className="text-xs text-muted-foreground">
-                    Choose aspect ratio after upload for best display
+                    Upload up to 5 photos for your post
                   </p>
                 </div>
-              )}
-              {!image && (
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Crop Options Modal */}
           {showCropOptions && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg p-6 max-w-md w-full space-y-4">
-                <div className="flex items-center gap-2">
-                  <Crop className="h-5 w-5" />
-                  <h3 className="text-lg font-semibold">Choose Aspect Ratio</h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Crop className="h-5 w-5" />
+                    <h3 className="text-lg font-semibold">Crop Image</h3>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={handleCropCancel}>
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
 
                 {originalImage && (
                   <div className="space-y-3">
-                    <img src={originalImage} alt="Original" className="w-full max-h-48 object-contain rounded" />
+                    <div className="flex justify-center bg-gray-100 rounded-lg p-2">
+                      <div className="relative inline-block max-w-full overflow-hidden select-none">
+                        <img
+                          src={originalImage}
+                          alt="Crop preview"
+                          className="max-w-full max-h-[50vh] block pointer-events-none select-none"
+                          style={{ width: 'auto', height: 'auto' }}
+                          onDragStart={(e) => e.preventDefault()}
+                        />
+                        <div
+                          className="absolute border-2 border-blue-500 bg-blue-500/20 cursor-move touch-none"
+                          style={{
+                            left: `${(cropArea.x / imageDimensions.width) * 100}%`,
+                            top: `${(cropArea.y / imageDimensions.height) * 100}%`,
+                            width: `${(cropArea.width / imageDimensions.width) * 100}%`,
+                            height: `${(cropArea.height / imageDimensions.height) * 100}%`
+                          }}
+                          onMouseDown={(e) => handleInteractionStart(e.clientX, e.clientY)}
+                          onTouchStart={(e) => handleInteractionStart(e.touches[0].clientX, e.touches[0].clientY)}
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-medium pointer-events-none">
+                            Drag to move
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
 
                     <div className="space-y-3">
-                      <Label>Select aspect ratio and drag to position:</Label>
+                      <Label>Aspect Ratio:</Label>
                       <div className="grid grid-cols-3 gap-2">
                         <Button
                           variant={selectedRatio === '1:1' ? 'default' : 'outline'}
@@ -434,30 +511,6 @@ const CreatePost = () => {
                           16:9 Landscape
                         </Button>
                       </div>
-
-                      {/* Interactive Crop Area */}
-                      <div className="relative inline-block max-w-full">
-                        <img
-                          src={originalImage}
-                          alt="Crop preview"
-                          className="max-w-full max-h-64 block"
-                          style={{ width: 'auto', height: 'auto' }}
-                        />
-                        <div
-                          className="absolute border-2 border-blue-500 bg-blue-500/20 cursor-move"
-                          style={{
-                            left: `${(cropArea.x / imageDimensions.width) * 100}%`,
-                            top: `${(cropArea.y / imageDimensions.height) * 100}%`,
-                            width: `${(cropArea.width / imageDimensions.width) * 100}%`,
-                            height: `${(cropArea.height / imageDimensions.height) * 100}%`
-                          }}
-                          onMouseDown={(e) => handleCropDrag(e, 'move')}
-                        >
-                          <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-medium">
-                            Drag to move
-                          </div>
-                        </div>
-                      </div>
                     </div>
 
                     <div className="flex gap-2 pt-2">
@@ -465,7 +518,7 @@ const CreatePost = () => {
                         Cancel
                       </Button>
                       <Button onClick={handleCropConfirm} className="flex-1">
-                        Crop & Continue
+                        Add Photo
                       </Button>
                     </div>
                   </div>
@@ -489,7 +542,7 @@ const CreatePost = () => {
             type="button"
             onClick={handleCreatePost}
             className="w-full"
-            disabled={!image || loading || showCropOptions}
+            disabled={images.length === 0 || loading || showCropOptions}
           >
             {loading ? "Creating Post..." : "Create Post"}
           </Button>
