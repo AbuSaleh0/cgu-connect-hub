@@ -20,9 +20,10 @@ interface CommentModalProps {
   onClose: () => void;
   postId: string;
   currentUser?: { id: number; username: string; avatar?: string; } | null;
+  isPostOwner?: boolean;
 }
 
-const CommentModal = ({ isOpen, onClose, postId, currentUser }: CommentModalProps) => {
+const CommentModal = ({ isOpen, onClose, postId, currentUser, isPostOwner }: CommentModalProps) => {
   const navigate = useNavigate();
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<CommentWithUser[]>([]);
@@ -156,7 +157,7 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser }: CommentModalProp
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {currentUser.id === comment.user_id ? (
+                            {currentUser.id === comment.user_id || isPostOwner ? (
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => handleDeleteComment(comment.id)}
@@ -220,7 +221,7 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser }: CommentModalProp
             <DialogTitle>Options</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2 py-4">
-            {selectedComment && currentUser && selectedComment.user_id === currentUser.id ? (
+            {selectedComment && currentUser && (selectedComment.user_id === currentUser.id || isPostOwner) ? (
               <Button
                 variant="ghost"
                 className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"

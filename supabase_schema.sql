@@ -162,16 +162,28 @@ create policy "Users can delete own comments" on public.comments for delete usin
 create policy "Users can view own notifications" on public.notifications for select using (
   exists (
     select 1 from public.users 
-    where (id = notifications.user_id) 
-    and auth_id = auth.uid()
+    where (id = notifications.user_id or id = notifications.from_user_id) 
+    and (
+      auth_id::text = auth.uid()::text 
+      OR 
+      email = (auth.jwt() ->> 'email')
+    )
   )
 );
 create policy "System can insert notifications" on public.notifications for insert with check (true);
 create policy "Users can update own notifications" on public.notifications for update using (
-  exists (select 1 from public.users where id = user_id and auth_id = auth.uid())
+  exists (select 1 from public.users where id = user_id and email = auth.uid()::text)
 );
 create policy "Users can delete own notifications" on public.notifications for delete using (
-  exists (select 1 from public.users where id = user_id and auth_id = auth.uid())
+  exists (
+    select 1 from public.users 
+    where (id = notifications.user_id or id = notifications.from_user_id) 
+    and (
+      auth_id::text = auth.uid()::text 
+      OR 
+      email = (auth.jwt() ->> 'email')
+    )
+  )
 );
 
 -- Follows table policies

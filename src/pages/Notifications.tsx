@@ -119,6 +119,10 @@ const Notifications = () => {
                       {/* If it's a follow notification, explicitly show the username structure requested */}
                       {notification.type === 'follow' ? (
                         <span><span className="font-semibold">{fromUser?.username}</span> started following you</span>
+                      ) : notification.type === 'like' ? (
+                        <span><span className="font-semibold">{fromUser?.username}</span> liked your post</span>
+                      ) : notification.type === 'comment' ? (
+                        <span><span className="font-semibold">{fromUser?.username}</span> {notification.message}</span>
                       ) : (
                         notification.message
                       )}

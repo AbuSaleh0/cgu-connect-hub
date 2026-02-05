@@ -318,6 +318,7 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
         onClose={() => setShowCommentModal(false)}
         postId={post.id}
         currentUser={currentUser}
+        isPostOwner={currentUser?.username === post.username}
       />
 
       {/* Share Modal */}

@@ -195,6 +195,7 @@ export interface Notification {
   type: 'like' | 'comment' | 'follow';
   from_user_id: number;
   post_id?: number;
+  comment_id?: number;
   message: string;
   read: boolean;
   created_at: string;
@@ -205,6 +206,7 @@ export interface CreateNotificationData {
   type: 'like' | 'comment' | 'follow';
   from_user_id: number;
   post_id?: number;
+  comment_id?: number;
   message: string;
 }
 

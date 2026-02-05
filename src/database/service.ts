@@ -118,11 +118,16 @@ export class DatabaseService {
                 await supabase.from('posts').update({ likes_count: Math.max(0, (post.likes_count || 0) - 1) }).eq('id', postId);
             }
 
-            // Remove notification logic...
+            // Remove notification if it exists (and we have the post owner)
+            // Remove notification if it exists (and we have the post owner)
             if (post) {
                 const { error: deleteError } = await supabase.from('notifications')
                     .delete()
-                    .match({ user_id: post.user_id, type: 'like', from_user_id: userId, post_id: postId });
+                    .eq('user_id', post.user_id)
+                    .eq('type', 'like')
+                    .eq('from_user_id', userId)
+                    .eq('post_id', postId);
+
                 if (deleteError) console.error("Error deleting like notification:", deleteError);
             }
             return false;
@@ -376,6 +381,8 @@ export class DatabaseService {
 
         if (error) {
             console.error('Error creating notification:', error);
+        } else {
+            console.log('Notification created successfully');
         }
     }
 
@@ -665,6 +672,13 @@ export class DatabaseService {
     }
 
     async deleteComment(commentId: number): Promise<boolean> {
+        // Fetch comment details details first
+        const { data: comment } = await supabase
+            .from('comments')
+            .select('user_id, post_id, content')
+            .eq('id', commentId)
+            .single();
+
         const { error } = await supabase
             .from('comments')
             .delete()
@@ -674,6 +688,35 @@ export class DatabaseService {
             console.error('Error deleting comment:', error);
             return false;
         }
+
+        // Delete associated notification
+        if (comment) {
+            // We need to find the post owner to know whose notification to delete
+            const { data: post } = await supabase
+                .from('posts')
+                .select('user_id')
+                .eq('id', comment.post_id)
+                .single();
+
+            if (post) {
+                // Delete the exact notification using comment_id
+                console.log(`Attempting to delete notification for comment_id=${commentId}`);
+
+                const { error: notificationError, count } = await supabase
+                    .from('notifications')
+                    .delete({ count: 'exact' })
+                    .match({
+                        comment_id: commentId
+                    });
+
+                if (notificationError) {
+                    console.error('Error deleting comment notification:', notificationError);
+                } else {
+                    console.log(`Deleted ${count} notifications`);
+                }
+            }
+        }
+
         return true;
     }
 
@@ -697,8 +740,30 @@ export class DatabaseService {
             return null;
         }
 
-        // Increment the post's comment count
+        // Fetch post owner to create notification
+        const { data: post } = await supabase
+            .from('posts')
+            .select('user_id')
+            .eq('id', commentData.post_id)
+            .single();
 
+        if (post && post.user_id !== commentData.user_id) {
+            const truncatedContent = commentData.content.length > 50
+                ? commentData.content.substring(0, 50) + "..."
+                : commentData.content;
+
+            console.log(`Creating notification for user ${post.user_id} from ${commentData.user_id}`);
+
+            await this.createNotification({
+                user_id: post.user_id,
+                type: 'comment',
+                from_user_id: commentData.user_id,
+                post_id: commentData.post_id,
+                comment_id: comment.id,
+                message: `commented: ${truncatedContent}`,
+                read: false
+            });
+        }
 
         return {
             id: comment.id,
