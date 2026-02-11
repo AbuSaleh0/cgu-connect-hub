@@ -23,15 +23,32 @@ interface PostCardProps {
   onInteractionClick: () => void;
   isAuthenticated: boolean;
   currentUser?: { id: number; username: string; } | null;
+  onLike?: () => void;
+  onComment?: () => void;
+  onShare?: () => void;
+  onSave?: (isSaved: boolean) => void;
+  onDelete?: () => void;
+  initialIsSaved?: boolean;
 }
 
-const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated, currentUser }) => {
+const PostCard: FC<PostCardProps> = ({
+  post,
+  onInteractionClick,
+  isAuthenticated,
+  currentUser,
+  onLike,
+  onComment,
+  onShare,
+  onSave,
+  onDelete,
+  initialIsSaved = false
+}) => {
   const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(initialIsSaved);
 
   // Carousel State
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -75,6 +92,9 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
     setIsLiked(!isLiked);
     setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
 
+    // Call optional callback
+    onLike?.();
+
     // Call API (Optimistic update)
     dbService.toggleLike(currentUser!.id, Number(post.id)).catch(err => {
       console.error("Error toggling like:", err);
@@ -90,6 +110,7 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
 
     // Open comment modal for authenticated users
     setShowCommentModal(true);
+    onComment?.();
   };
 
   const handleShare = () => {
@@ -100,6 +121,7 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
 
     // Open share modal for authenticated users
     setShowShareModal(true);
+    onShare?.();
   };
 
   const handleBookmark = async () => {
@@ -118,6 +140,7 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
       });
 
       setIsSaved(newSaveState);
+      onSave?.(newSaveState);
     } catch (error) {
       console.error('Error saving post:', error);
     }
@@ -191,7 +214,22 @@ const PostCard: FC<PostCardProps> = ({ post, onInteractionClick, isAuthenticated
             post={post}
             currentUser={currentUser}
             isOwnPost={currentUser?.username === post.username}
-            onPostUpdate={onInteractionClick} // Or specific update handler
+            isSaved={isSaved}
+            onPostUpdate={(action, payload) => {
+              if (action === 'save') {
+                // Update local state with payload if available, otherwise toggle
+                const newSavedState = typeof payload === 'boolean' ? payload : !isSaved;
+                setIsSaved(newSavedState);
+                onSave?.(newSavedState);
+              } else if (action === 'delete') {
+                onDelete?.();
+              } else if (action === 'edit') {
+                // Trigger a refresh or update UI if needed
+                onInteractionClick();
+              } else if (action === 'follow') {
+                // Handle follow update if needed
+              }
+            }}
           />
         </div>
       </div>

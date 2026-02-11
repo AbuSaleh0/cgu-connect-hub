@@ -121,15 +121,19 @@ const PostDetailModal = ({ isOpen, onClose, post }: PostDetailModalProps) => {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!currentUser || !post) return;
 
-    const saved = dbService.toggleSavePost({
-      user_id: currentUser.id,
-      post_id: post.id
-    });
+    try {
+      const saved = await dbService.toggleSavePost({
+        user_id: currentUser.id,
+        post_id: post.id
+      });
 
-    setIsSaved(saved);
+      setIsSaved(saved);
+    } catch (error) {
+      console.error('Error toggling save:', error);
+    }
   };
 
   const handleAddComment = async () => {
@@ -285,7 +289,8 @@ const PostDetailModal = ({ isOpen, onClose, post }: PostDetailModalProps) => {
                         }}
                         currentUser={currentUser}
                         isOwnPost={currentUser.username === post.username}
-                        onPostUpdate={(action) => {
+                        isSaved={isSaved}
+                        onPostUpdate={(action, payload) => {
                           if (action === 'delete') {
                             onClose();
                             window.location.reload();
@@ -294,7 +299,11 @@ const PostDetailModal = ({ isOpen, onClose, post }: PostDetailModalProps) => {
                             window.location.reload();
                           } else if (action === 'save') {
                             // Update local saved state
-                            dbService.isPostSaved(currentUser.id, post.id).then(setIsSaved);
+                            if (typeof payload === 'boolean') {
+                              setIsSaved(payload);
+                            } else {
+                              dbService.isPostSaved(currentUser.id, post.id).then(setIsSaved);
+                            }
                           }
                         }}
                       />

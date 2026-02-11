@@ -11,6 +11,7 @@ import PostCard from "@/components/PostCard";
 import ConfessionPostCard from "@/components/ConfessionPostCard";
 import ConfessionDetailModal from "@/components/ConfessionDetailModal";
 import PostDetailModal from "@/components/PostDetailModal";
+import { convertDbPostToCardData } from "@/database/utils";
 
 const SavedPosts = () => {
     const navigate = useNavigate();
@@ -39,7 +40,6 @@ const SavedPosts = () => {
         setLoading(true);
         try {
             // Load saved posts
-            // Assuming getSavedPosts exists, if not we'll need to add it
             const posts = await dbService.getSavedPosts(currentUser.id);
             setSavedPosts(posts);
 
@@ -105,8 +105,8 @@ const SavedPosts = () => {
                 <div className="flex gap-4 border-b mb-6">
                     <button
                         className={`pb-2 px-4 font-medium transition-colors relative ${activeTab === 'posts'
-                                ? 'text-primary border-b-2 border-primary -mb-[1px]'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'text-primary border-b-2 border-primary -mb-[1px]'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                         onClick={() => setActiveTab('posts')}
                     >
@@ -117,8 +117,8 @@ const SavedPosts = () => {
                     </button>
                     <button
                         className={`pb-2 px-4 font-medium transition-colors relative ${activeTab === 'confessions'
-                                ? 'text-primary border-b-2 border-primary -mb-[1px]'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'text-primary border-b-2 border-primary -mb-[1px]'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                         onClick={() => setActiveTab('confessions')}
                     >
@@ -140,13 +140,13 @@ const SavedPosts = () => {
                                 savedPosts.map(post => (
                                     <PostCard
                                         key={post.id}
-                                        {...post}
+                                        post={convertDbPostToCardData(post, dbService.formatTimestamp)}
                                         currentUser={currentUser}
-                                        onLike={() => { }} // Consider implementing refresh logic if needed
-                                        onComment={() => handlePostClick(post)}
-                                        onShare={() => { }}
-                                        onSave={() => loadSavedItems()} // Refresh list on unsave
-                                        onDelete={() => { }} // Saved posts usually aren't deleted from here
+                                        isAuthenticated={!!currentUser}
+                                        initialIsSaved={true}
+                                        onInteractionClick={() => handlePostClick(post)}
+                                        onSave={() => loadSavedItems()}
+                                        onDelete={() => loadSavedItems()}
                                     />
                                 ))
                             ) : (

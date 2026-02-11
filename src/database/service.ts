@@ -160,26 +160,57 @@ export class DatabaseService {
     }
 
     async isPostSaved(userId: number, postId: number): Promise<boolean> {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('saved_posts')
             .select('id')
-            .match({ user_id: userId, post_id: postId })
-            .single();
+            .eq('user_id', userId)
+            .eq('post_id', postId)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error checking if post is saved:', error);
+            return false;
+        }
+
         return !!data;
     }
 
     async toggleSavePost(data: CreateSavedPostData): Promise<boolean> {
-        const { data: existing } = await supabase
+        // First check if it exists
+        const { data: existing, error: checkError } = await supabase
             .from('saved_posts')
             .select('id')
-            .match({ user_id: data.user_id, post_id: data.post_id })
-            .single();
+            .eq('user_id', data.user_id)
+            .eq('post_id', data.post_id)
+            .maybeSingle();
+
+        if (checkError) {
+            console.error('Error checking existing saved post:', checkError);
+            // Assume not saved if error, or handle gracefully? 
+            // Better to try inserting if we can't read might be permission issue, but let's try standard flow.
+        }
 
         if (existing) {
-            await supabase.from('saved_posts').delete().eq('id', existing.id);
+            const { error: deleteError } = await supabase
+                .from('saved_posts')
+                .delete()
+                .eq('id', existing.id);
+
+            if (deleteError) {
+                console.error('Error deleting saved post:', deleteError);
+                // If delete fails, return true (still saved)
+                return true;
+            }
             return false;
         } else {
-            await supabase.from('saved_posts').insert({ user_id: data.user_id, post_id: data.post_id });
+            const { error: insertError } = await supabase
+                .from('saved_posts')
+                .insert({ user_id: data.user_id, post_id: data.post_id });
+
+            if (insertError) {
+                console.error('Error inserting saved post:', insertError);
+                return false;
+            }
             return true;
         }
     }
@@ -853,7 +884,7 @@ export class DatabaseService {
             .from('saved_posts')
             .select(`
                 post_id,
-                posts:posts (*, users(username, avatar))
+                posts:posts (*, users(username, avatar), likes(count), comments(count))
             `)
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
@@ -869,7 +900,9 @@ export class DatabaseService {
             return {
                 ...post,
                 username: post.users?.username,
-                user_avatar: post.users?.avatar
+                user_avatar: post.users?.avatar,
+                likes_count: post.likes?.[0]?.count || 0,
+                comments_count: post.comments?.[0]?.count || 0
             };
         }).filter((post: any) => post !== null);
     }

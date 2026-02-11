@@ -29,10 +29,11 @@ interface PostOptionsModalProps {
   };
   currentUser?: { id: number; username: string; } | null;
   isOwnPost: boolean;
-  onPostUpdate?: (action?: string) => void;
+  onPostUpdate?: (action: string, payload?: any) => void;
+  isSaved?: boolean;
 }
 
-const PostOptionsModal = ({ post, currentUser, isOwnPost, onPostUpdate }: PostOptionsModalProps) => {
+const PostOptionsModal = ({ post, currentUser, isOwnPost, onPostUpdate, isSaved: parentIsSaved }: PostOptionsModalProps) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editCaption, setEditCaption] = useState(post.caption);
@@ -43,7 +44,12 @@ const PostOptionsModal = ({ post, currentUser, isOwnPost, onPostUpdate }: PostOp
   // Load initial states
   useEffect(() => {
     if (currentUser && post.id) {
-      dbService.isPostSaved(currentUser.id, Number(post.id)).then(setIsSaved);
+      if (parentIsSaved !== undefined) {
+        setIsSaved(parentIsSaved);
+      } else {
+        dbService.isPostSaved(currentUser.id, Number(post.id)).then(setIsSaved);
+      }
+
       setEditCaption(post.caption);
 
       if (!isOwnPost) {
@@ -55,7 +61,14 @@ const PostOptionsModal = ({ post, currentUser, isOwnPost, onPostUpdate }: PostOp
         });
       }
     }
-  }, [currentUser, post.id, post.username, post.caption, isOwnPost]);
+  }, [currentUser, post.id, post.username, post.caption, isOwnPost, parentIsSaved]);
+
+  // Sync with parent prop changes
+  useEffect(() => {
+    if (parentIsSaved !== undefined) {
+      setIsSaved(parentIsSaved);
+    }
+  }, [parentIsSaved]);
 
   const handleSave = () => {
     if (!currentUser) return;
@@ -65,7 +78,7 @@ const PostOptionsModal = ({ post, currentUser, isOwnPost, onPostUpdate }: PostOp
         post_id: Number(post.id)
       }).then(newSaveState => {
         setIsSaved(newSaveState);
-        onPostUpdate?.('save');
+        onPostUpdate?.('save', newSaveState);
       });
     } catch (error) {
       console.error('Error saving post:', error);
