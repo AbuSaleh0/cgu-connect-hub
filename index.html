@@ -1,44 +1,53 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CGU Connect - Social Network for CGU Students</title>
-    <meta name="description" content="CGU Connect - Exclusive social media platform for C.V. Raman Global University students. Share, connect, and engage with your campus community." />
-    <meta name="author" content="CGU Connect" />
 
-    <meta property="og:title" content="CGU Connect - Connect with CGU Students" />
-    <meta property="og:description" content="Join the exclusive social network for CGU students. Share moments, ideas, and experiences." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CGU Connect - Social Network for CGU Students</title>
+  <meta name="description"
+    content="CGU Connect - Exclusive social media platform for C.V. Raman Global University students. Share, connect, and engage with your campus community." />
+  <meta name="author" content="CGU Connect" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon_io/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon_io/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon_io/favicon-16x16.png">
+  <link rel="manifest" href="/assets/favicon_io/site.webmanifest">
 
-  <body>
-    <!-- Hidden Netlify form for feedback -->
-    <form name="cgu-connect-feedback" netlify hidden>
-      <input type="text" name="name" />
-      <input type="email" name="email" />
-      <select name="category">
-        <option value="bug">Bug Report</option>
-        <option value="feature">Feature Request</option>
-        <option value="improvement">Improvement Suggestion</option>
-        <option value="ui-ux">UI/UX Feedback</option>
-        <option value="performance">Performance Issue</option>
-        <option value="general">General Feedback</option>
-        <option value="other">Other</option>
-      </select>
-      <input type="text" name="subject" />
-      <textarea name="message"></textarea>
-      <input type="text" name="user-id" />
-      <input type="text" name="username" />
-      <input type="text" name="timestamp" />
-    </form>
+  <meta property="og:title" content="CGU Connect - Connect with CGU Students" />
+  <meta property="og:description"
+    content="Join the exclusive social network for CGU students. Share moments, ideas, and experiences." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@lovable_dev" />
+  <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+</head>
+
+<body>
+  <!-- Hidden Netlify form for feedback -->
+  <form name="cgu-connect-feedback" netlify hidden>
+    <input type="text" name="name" />
+    <input type="email" name="email" />
+    <select name="category">
+      <option value="bug">Bug Report</option>
+      <option value="feature">Feature Request</option>
+      <option value="improvement">Improvement Suggestion</option>
+      <option value="ui-ux">UI/UX Feedback</option>
+      <option value="performance">Performance Issue</option>
+      <option value="general">General Feedback</option>
+      <option value="other">Other</option>
+    </select>
+    <input type="text" name="subject" />
+    <textarea name="message"></textarea>
+    <input type="text" name="user-id" />
+    <input type="text" name="username" />
+    <input type="text" name="timestamp" />
+  </form>
+
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
