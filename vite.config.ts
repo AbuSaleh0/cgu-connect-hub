@@ -16,12 +16,18 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.ico', 'assets/favicon_io/apple-touch-icon.png', 'assets/favicon_io/favicon-16x16.png', 'assets/favicon_io/favicon-32x32.png'],
+      devOptions: {
+        enabled: true
+      },
       manifest: {
         name: 'CGU Connect',
         short_name: 'CGU Connect',
         description: 'Exclusive social media platform for C.V. Raman Global University students.',
         theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
         icons: [
           {
             src: '/assets/favicon_io/android-chrome-192x192.png',
