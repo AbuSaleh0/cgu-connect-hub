@@ -1168,6 +1168,19 @@ export class DatabaseService {
         }
         return newPinned;
     }
+
+    async createContributionOrder(amount: number): Promise<any> {
+        const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
+            body: { amount },
+        });
+
+        if (error) {
+            console.error('Error creating Razorpay order:', error);
+            throw new Error('Failed to create payment order');
+        }
+
+        return data;
+    }
 }
 
 export const dbService = new DatabaseService();

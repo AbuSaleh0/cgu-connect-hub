@@ -13,6 +13,7 @@ import FollowListModal from "@/components/FollowListModal";
 import ChangeUsernameModal from "@/components/ChangeUsernameModal";
 import FeedbackModal from "@/components/FeedbackModal";
 import PostDetailModal from "@/components/PostDetailModal";
+import ContributeModal from "@/components/ContributeModal";
 
 import MobileBottomNav from "@/components/MobileBottomNav";
 
@@ -36,6 +37,7 @@ const Profile = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showChangeUsernameModal, setShowChangeUsernameModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showContributeModal, setShowContributeModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostWithUser | null>(null);
   const [showPostDetail, setShowPostDetail] = useState(false);
   const { isInstallable, promptToInstall } = useInstallPrompt();
@@ -342,6 +344,18 @@ const Profile = () => {
                 <span className="truncate">Send Feedback</span>
               </Button>
 
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-sm py-2 px-3 text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                onClick={() => {
+                  setShowMenu(false);
+                  setShowContributeModal(true);
+                }}
+              >
+                <Heart className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Contribute</span>
+              </Button>
+
               {isInstallable && (
                 <Button
                   variant="ghost"
@@ -598,6 +612,13 @@ const Profile = () => {
           isOpen={showFeedbackModal}
           onClose={() => setShowFeedbackModal(false)}
           currentUser={currentUser}
+        />
+      )}
+
+      {isOwnProfile && (
+        <ContributeModal
+          isOpen={showContributeModal}
+          onClose={() => setShowContributeModal(false)}
         />
       )}
 
