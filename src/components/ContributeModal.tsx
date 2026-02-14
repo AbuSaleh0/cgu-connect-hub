@@ -99,7 +99,7 @@ const ContributeModal = ({ isOpen, onClose }: ContributeModalProps) => {
                     </div>
 
                     <div className="flex gap-2 justify-center mt-2">
-                        {[50, 100, 500].map((val) => (
+                        {[10, 50, 100, 500].map((val) => (
                             <Button
                                 key={val}
                                 variant="outline"

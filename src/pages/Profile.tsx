@@ -12,10 +12,9 @@ import EditProfileModal from "@/components/EditProfileModal";
 import FollowListModal from "@/components/FollowListModal";
 import ChangeUsernameModal from "@/components/ChangeUsernameModal";
 import FeedbackModal from "@/components/FeedbackModal";
-import PostDetailModal from "@/components/PostDetailModal";
 import ContributeModal from "@/components/ContributeModal";
-
 import MobileBottomNav from "@/components/MobileBottomNav";
+import PostsView from "@/components/PostsView";
 
 const Profile = () => {
   const { username } = useParams();
@@ -39,7 +38,7 @@ const Profile = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostWithUser | null>(null);
-  const [showPostDetail, setShowPostDetail] = useState(false);
+  const [showPostsView, setShowPostsView] = useState(false);
   const { isInstallable, promptToInstall } = useInstallPrompt();
 
 
@@ -208,12 +207,12 @@ const Profile = () => {
   const handlePostClick = (post: PostWithUser) => {
     console.log('handlePostClick called with post:', post);
     setSelectedPost(post);
-    setShowPostDetail(true);
-    console.log('Modal state updated - showPostDetail: true, selectedPost set');
+    setShowPostsView(true);
+    console.log('Modal state updated - showPostsView set');
   };
 
-  const handleClosePostDetail = async () => {
-    setShowPostDetail(false);
+  const handleClosePostView = async () => {
+    setShowPostsView(false);
     setSelectedPost(null);
 
     // Refresh posts data to get updated like/comment counts
@@ -622,11 +621,14 @@ const Profile = () => {
         />
       )}
 
-      <PostDetailModal
-        isOpen={showPostDetail}
-        onClose={handleClosePostDetail}
-        post={selectedPost}
-      />
+      {showPostsView && (
+        <PostsView
+          posts={posts}
+          initialPostId={selectedPost?.id}
+          onClose={handleClosePostView}
+          currentUser={currentUser}
+        />
+      )}
 
       <FollowListModal
         isOpen={showFollowersModal}

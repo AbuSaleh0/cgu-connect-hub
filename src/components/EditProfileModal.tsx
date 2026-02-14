@@ -10,6 +10,7 @@ import { Camera } from "lucide-react";
 import { dbService } from "@/database";
 import { UserPublic } from "@/database/types";
 import ImageCropModal from "@/components/ImageCropModal";
+import { DEPARTMENTS } from "@/lib/constants";
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -142,14 +143,11 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdate }: EditProfileModalP
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CSE">Computer Science</SelectItem>
-                  <SelectItem value="ECE">Electronics & Communication</SelectItem>
-                  <SelectItem value="ME">Mechanical Engineering</SelectItem>
-                  <SelectItem value="CE">Civil Engineering</SelectItem>
-                  <SelectItem value="EE">Electrical Engineering</SelectItem>
-                  <SelectItem value="IT">Information Technology</SelectItem>
-                  <SelectItem value="MBA">Business Administration</SelectItem>
-                  <SelectItem value="BBA">Bachelor of Business Administration</SelectItem>
+                  {DEPARTMENTS.map((dept) => (
+                    <SelectItem key={dept.value} value={dept.value}>
+                      {dept.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

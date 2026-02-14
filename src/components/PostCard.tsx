@@ -236,7 +236,7 @@ const PostCard: FC<PostCardProps> = ({
 
       {/* Post Media (Carousel) */}
       <div
-        className="relative w-full bg-muted flex items-center justify-center overflow-hidden aspect-square sm:aspect-auto sm:max-h-[600px] select-none"
+        className="relative w-full bg-muted flex items-center justify-center overflow-hidden sm:max-h-[600px] select-none"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -244,7 +244,7 @@ const PostCard: FC<PostCardProps> = ({
         <img
           src={images[currentImageIndex]}
           alt={post.caption || `Post image ${currentImageIndex + 1}`}
-          className="w-full h-full object-cover"
+          className="w-full h-auto max-h-[600px] object-contain sm:object-cover"
         />
 
         {/* Navigation Arrows (Desktop) */}

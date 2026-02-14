@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { Eye, EyeOff } from "lucide-react";
+import { DEPARTMENTS } from "@/lib/constants";
 
 export default function ProfileSetup() {
     const navigate = useNavigate();
@@ -242,11 +243,11 @@ export default function ProfileSetup() {
                                     <SelectValue placeholder="Select" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="CSE">CSE</SelectItem>
-                                    <SelectItem value="ECE">ECE</SelectItem>
-                                    <SelectItem value="EE">EE</SelectItem>
-                                    <SelectItem value="ME">ME</SelectItem>
-                                    <SelectItem value="Civil">Civil</SelectItem>
+                                    {DEPARTMENTS.map((dept) => (
+                                        <SelectItem key={dept.value} value={dept.value}>
+                                            {dept.label}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>

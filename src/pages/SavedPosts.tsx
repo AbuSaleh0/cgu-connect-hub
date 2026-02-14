@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import PostCard from "@/components/PostCard";
 import ConfessionPostCard from "@/components/ConfessionPostCard";
 import ConfessionDetailModal from "@/components/ConfessionDetailModal";
-import PostDetailModal from "@/components/PostDetailModal";
+import PostsView from "@/components/PostsView";
 import { convertDbPostToCardData } from "@/database/utils";
 
 const SavedPosts = () => {
@@ -25,7 +25,7 @@ const SavedPosts = () => {
     const [selectedConfession, setSelectedConfession] = useState<Confession | null>(null);
     const [showConfessionModal, setShowConfessionModal] = useState(false);
     const [selectedPost, setSelectedPost] = useState<PostWithUser | null>(null);
-    const [showPostDetail, setShowPostDetail] = useState(false);
+    const [showPostsView, setShowPostsView] = useState(false);
 
     useEffect(() => {
         if (!currentUser) {
@@ -62,7 +62,7 @@ const SavedPosts = () => {
 
     const handlePostClick = (post: PostWithUser) => {
         setSelectedPost(post);
-        setShowPostDetail(true);
+        setShowPostsView(true);
     };
 
     const handleConfessionCommentClick = (confession: Confession) => {
@@ -193,11 +193,18 @@ const SavedPosts = () => {
                 currentUser={currentUser}
             />
 
-            <PostDetailModal
-                isOpen={showPostDetail}
-                onClose={() => setShowPostDetail(false)}
-                post={selectedPost}
-            />
+            {showPostsView && (
+                <PostsView
+                    posts={savedPosts}
+                    initialPostId={selectedPost?.id}
+                    onClose={() => {
+                        setShowPostsView(false);
+                        setSelectedPost(null);
+                        loadSavedItems(); // Refresh on close
+                    }}
+                    currentUser={currentUser}
+                />
+            )}
         </div>
     );
 };
