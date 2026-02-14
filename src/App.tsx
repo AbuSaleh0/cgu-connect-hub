@@ -36,6 +36,9 @@ const App = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         handleLogin(session);
+      } else if (event === 'PASSWORD_RECOVERY') {
+        // Handle password recovery flow
+        window.location.href = '/change-password?reason=recovery';
       } else if (event === 'SIGNED_OUT') {
         sessionManager.logout();
       }
@@ -53,6 +56,19 @@ const App = () => {
       console.log("App: Sync result:", user);
 
       if (user) {
+        // Security Check: Enforce Domain Restriction
+        const email = user.email || '';
+        const isAllowedDomain = email.endsWith('@cgu-odisha.ac.in');
+        const isAdmin = user.is_admin;
+
+        if (!isAllowedDomain && !isAdmin) {
+          console.error("Access Denied: Unauthorized email domain.");
+          await supabase.auth.signOut();
+          sessionManager.logout();
+          alert("Access Restricted: Only cgu-odisha.ac.in emails are allowed.");
+          return;
+        }
+
         console.log("App: Login successful, updating session manager");
         sessionManager.login(user);
 

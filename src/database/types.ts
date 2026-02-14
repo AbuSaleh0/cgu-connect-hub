@@ -8,6 +8,7 @@ export interface User {
   bio: string;
   semester: string;
   department: string;
+  is_admin?: boolean;
 
   profile_setup_complete: boolean;
   password_setup_complete: boolean;
@@ -24,6 +25,7 @@ export interface UserPublic {
   bio: string;
   semester: string;
   department: string;
+  is_admin?: boolean;
 
   profile_setup_complete: boolean;
   password_setup_complete: boolean;

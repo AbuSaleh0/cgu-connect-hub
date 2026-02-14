@@ -13,6 +13,9 @@ const ChangePassword = () => {
     const navigate = useNavigate();
     const currentUser = sessionManager.getCurrentUser();
 
+    const [searchParams] = React.useState(new URLSearchParams(window.location.search));
+    const isRecovery = searchParams.get('reason') === 'recovery';
+
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -32,21 +35,23 @@ const ChangePassword = () => {
             return;
         }
 
-        if (!currentUser?.email) {
-            toast.error("User email not found");
-            return;
-        }
-
         setIsLoading(true);
 
         try {
-            // 1. Verify old password
-            const isVerified = await dbService.verifyPassword(currentUser.email, currentPassword);
+            // 1. Verify old password (skip if recovery)
+            if (!isRecovery) {
+                if (!currentUser?.email) {
+                    toast.error("User email not found");
+                    setIsLoading(false);
+                    return;
+                }
+                const isVerified = await dbService.verifyPassword(currentUser.email, currentPassword);
 
-            if (!isVerified) {
-                toast.error("Incorrect current password");
-                setIsLoading(false);
-                return;
+                if (!isVerified) {
+                    toast.error("Incorrect current password");
+                    setIsLoading(false);
+                    return;
+                }
             }
 
             // 2. Update to new password
@@ -54,7 +59,13 @@ const ChangePassword = () => {
 
             if (success) {
                 toast.success("Password updated successfully");
-                navigate(`/${currentUser.username}`);
+                if (isRecovery) {
+                    // Remove query param to exit recovery mode and clear history
+                    window.history.replaceState(null, '', '/change-password');
+                    navigate(`/${currentUser?.username || ''}`);
+                } else {
+                    navigate(`/${currentUser?.username || ''}`);
+                }
             } else {
                 toast.error(error || "Failed to update password");
             }
@@ -133,17 +144,19 @@ const ChangePassword = () => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="current-password">Current Password</Label>
-                            <Input
-                                id="current-password"
-                                type="password"
-                                placeholder="Enter current password"
-                                value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
-                                required
-                            />
-                        </div>
+                        {!isRecovery && (
+                            <div className="space-y-2">
+                                <Label htmlFor="current-password">Current Password</Label>
+                                <Input
+                                    id="current-password"
+                                    type="password"
+                                    placeholder="Enter current password"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    required={!isRecovery}
+                                />
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label htmlFor="new-password">New Password</Label>

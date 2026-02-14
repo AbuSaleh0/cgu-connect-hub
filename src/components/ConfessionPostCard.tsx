@@ -14,11 +14,12 @@ interface ConfessionPostCardProps {
     confession: Confession;
     onInteractionClick: () => void;
     isAuthenticated: boolean;
-    currentUser?: { id: number; username: string; } | null;
+    currentUser?: { id: number; username: string; is_admin?: boolean; } | null;
     onCommentClick?: (confessionId: number) => void;
+    onDelete?: () => void;
 }
 
-const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onInteractionClick, isAuthenticated, currentUser, onCommentClick }) => {
+const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onInteractionClick, isAuthenticated, currentUser, onCommentClick, onDelete }) => {
     const { toast } = useToast();
     const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
@@ -139,6 +140,18 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
         });
     };
 
+    const handleDelete = async () => {
+        if (!confirm("Are you sure you want to delete this confession?")) return;
+
+        const result = await dbService.deleteConfession(confession.id);
+        if (result.success) {
+            toast({ title: "Confession deleted" });
+            onDelete?.();
+        } else {
+            toast({ title: "Error deleting confession", variant: "destructive" });
+        }
+    };
+
     return (
         <article className="bg-card rounded-lg shadow-card hover:shadow-card-hover transition-shadow border border-border/50">
             {/* Header */}
@@ -172,6 +185,14 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
                             <Clipboard className="h-4 w-4 mr-2" />
                             Copy Link
                         </DropdownMenuItem>
+                        {currentUser?.is_admin && (
+                            <>
+                                <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
+                                    <Trash className="h-4 w-4 mr-2" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </>
+                        )}
                         <DropdownMenuItem onClick={handleReport} className="text-destructive focus:text-destructive">
                             <Flag className="h-4 w-4 mr-2" />
                             Report

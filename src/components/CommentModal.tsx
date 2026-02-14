@@ -19,7 +19,7 @@ interface CommentModalProps {
   isOpen: boolean;
   onClose: () => void;
   postId: string;
-  currentUser?: { id: number; username: string; avatar?: string; } | null;
+  currentUser?: { id: number; username: string; avatar?: string; is_admin?: boolean; } | null;
   isPostOwner?: boolean;
 }
 
@@ -157,7 +157,7 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser, isPostOwner }: Com
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {currentUser.id === comment.user_id || isPostOwner ? (
+                            {currentUser.id === comment.user_id || isPostOwner || currentUser.is_admin ? (
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => handleDeleteComment(comment.id)}
@@ -221,7 +221,7 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser, isPostOwner }: Com
             <DialogTitle>Options</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2 py-4">
-            {selectedComment && currentUser && (selectedComment.user_id === currentUser.id || isPostOwner) ? (
+            {selectedComment && currentUser && (selectedComment.user_id === currentUser.id || isPostOwner || currentUser.is_admin) ? (
               <Button
                 variant="ghost"
                 className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"

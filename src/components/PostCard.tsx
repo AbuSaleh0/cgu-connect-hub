@@ -22,7 +22,7 @@ interface PostCardProps {
   post: Post;
   onInteractionClick: () => void;
   isAuthenticated: boolean;
-  currentUser?: { id: number; username: string; } | null;
+  currentUser?: { id: number; username: string; is_admin?: boolean; } | null;
   onLike?: () => void;
   onComment?: () => void;
   onShare?: () => void;

@@ -27,7 +27,7 @@ interface PostOptionsModalProps {
     username: string;
     caption: string;
   };
-  currentUser?: { id: number; username: string; } | null;
+  currentUser?: { id: number; username: string; is_admin?: boolean; } | null;
   isOwnPost: boolean;
   onPostUpdate?: (action: string, payload?: any) => void;
   isSaved?: boolean;
@@ -147,20 +147,24 @@ const PostOptionsModal = ({ post, currentUser, isOwnPost, onPostUpdate, isSaved:
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          {isOwnPost ? (
+          {isOwnPost || currentUser?.is_admin ? (
             <>
               <DropdownMenuItem onClick={handleSave}>
                 <Bookmark className="mr-2 h-4 w-4" />
                 {isSaved ? 'Unsave' : 'Save'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowEditModal(true)}>
-                <Edit3 className="mr-2 h-4 w-4" />
-                Edit Caption
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePin}>
-                <Pin className="mr-2 h-4 w-4" />
-                {isPinned ? 'Unpin' : 'Pin'}
-              </DropdownMenuItem>
+              {isOwnPost && (
+                <>
+                  <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                    <Edit3 className="mr-2 h-4 w-4" />
+                    Edit Caption
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handlePin}>
+                    <Pin className="mr-2 h-4 w-4" />
+                    {isPinned ? 'Unpin' : 'Pin'}
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-red-600 focus:text-red-600">
                 <Trash2 className="mr-2 h-4 w-4" />

@@ -112,7 +112,7 @@ const ConfessionDetailModal = ({ isOpen, onClose, confession, currentUser }: Con
         }
     };
 
-    const isOwner = selectedComment && currentUser && selectedComment.user_id === currentUser.id;
+    const isOwner = selectedComment && currentUser && (selectedComment.user_id === currentUser.id || currentUser.is_admin);
 
     if (!confession) return null;
 
@@ -200,7 +200,7 @@ const ConfessionDetailModal = ({ isOpen, onClose, confession, currentUser }: Con
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
-                                                                {currentUser.id === comment.user_id ? (
+                                                                {currentUser.id === comment.user_id || currentUser.is_admin ? (
                                                                     <DropdownMenuItem
                                                                         className="text-destructive focus:text-destructive"
                                                                         onClick={() => handleDeleteComment(comment.id)}

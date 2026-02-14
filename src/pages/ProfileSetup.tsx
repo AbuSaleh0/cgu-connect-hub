@@ -122,7 +122,10 @@ export default function ProfileSetup() {
             // 3. Mark setup as complete
             const { error: flagError } = await supabase
                 .from("users")
-                .update({ profile_setup_complete: true })
+                .update({
+                    profile_setup_complete: true,
+                    password_setup_complete: true
+                })
                 .eq("id", user.id);
 
             if (flagError) {
