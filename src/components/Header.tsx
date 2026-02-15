@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User, Mail, MessageSquareQuote } from "lucide-react";
+import { Heart, Home, Search, PlusSquare, MessageCircle, LogOut, User, Mail, MessageSquareQuote, LifeBuoy } from "lucide-react";
 import { UserPublic } from "@/database";
 import { useNavigate } from "react-router-dom";
 import { useUnreadCount } from "@/database/messaging";
@@ -92,6 +92,13 @@ const Header = ({
               )}
             </div>
             <span>Notifications</span>
+          </button>
+          <button
+            onClick={() => window.open('/support', '_blank')}
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+          >
+            <LifeBuoy className="h-5 w-5" />
+            <span>Support</span>
           </button>
           <button
             onClick={onCreateClick || (() => navigate('/create'))}

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Settings, UserPlus, MessageCircle, User, Lock, Bookmark, LogOut, Menu, X, MessageSquare, Heart, Pin, MessageSquareQuote, Layers, Download } from "lucide-react";
+import { ArrowLeft, Settings, UserPlus, MessageCircle, User, Lock, Bookmark, LogOut, Menu, X, MessageSquare, Heart, Pin, MessageSquareQuote, Layers, Download, LifeBuoy } from "lucide-react";
 import { dbService } from "@/database";
 import { sessionManager } from "@/lib/session";
 import { UserPublic, PostWithUser } from "@/database/types";
@@ -345,6 +345,18 @@ const Profile = () => {
 
               <Button
                 variant="ghost"
+                className="w-full justify-start gap-3 text-sm py-2 px-3"
+                onClick={() => {
+                  setShowMenu(false);
+                  window.open('/support', '_blank');
+                }}
+              >
+                <LifeBuoy className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Support</span>
+              </Button>
+
+              <Button
+                variant="ghost"
                 className="w-full justify-start gap-3 text-sm py-2 px-3 text-pink-600 hover:text-pink-700 hover:bg-pink-50"
                 onClick={() => {
                   setShowMenu(false);
@@ -388,7 +400,8 @@ const Profile = () => {
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
       <div className="max-w-4xl mx-auto p-4 md:p-6 pb-20 md:pb-6">
         <div className="flex items-center justify-between mb-8">
@@ -588,47 +601,57 @@ const Profile = () => {
         </div>
       </div>
 
-      {isOwnProfile && (
-        <EditProfileModal
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          user={user}
-          onUpdate={handleProfileUpdate}
-        />
-      )}
+      {
+        isOwnProfile && (
+          <EditProfileModal
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            user={user}
+            onUpdate={handleProfileUpdate}
+          />
+        )
+      }
 
-      {isOwnProfile && currentUser && (
-        <ChangeUsernameModal
-          isOpen={showChangeUsernameModal}
-          onClose={() => setShowChangeUsernameModal(false)}
-          currentUser={currentUser}
-          onUsernameUpdated={handleUsernameUpdate}
-        />
-      )}
+      {
+        isOwnProfile && currentUser && (
+          <ChangeUsernameModal
+            isOpen={showChangeUsernameModal}
+            onClose={() => setShowChangeUsernameModal(false)}
+            currentUser={currentUser}
+            onUsernameUpdated={handleUsernameUpdate}
+          />
+        )
+      }
 
-      {isOwnProfile && (
-        <FeedbackModal
-          isOpen={showFeedbackModal}
-          onClose={() => setShowFeedbackModal(false)}
-          currentUser={currentUser}
-        />
-      )}
+      {
+        isOwnProfile && (
+          <FeedbackModal
+            isOpen={showFeedbackModal}
+            onClose={() => setShowFeedbackModal(false)}
+            currentUser={currentUser}
+          />
+        )
+      }
 
-      {isOwnProfile && (
-        <ContributeModal
-          isOpen={showContributeModal}
-          onClose={() => setShowContributeModal(false)}
-        />
-      )}
+      {
+        isOwnProfile && (
+          <ContributeModal
+            isOpen={showContributeModal}
+            onClose={() => setShowContributeModal(false)}
+          />
+        )
+      }
 
-      {showPostsView && (
-        <PostsView
-          posts={posts}
-          initialPostId={selectedPost?.id}
-          onClose={handleClosePostView}
-          currentUser={currentUser}
-        />
-      )}
+      {
+        showPostsView && (
+          <PostsView
+            posts={posts}
+            initialPostId={selectedPost?.id}
+            onClose={handleClosePostView}
+            currentUser={currentUser}
+          />
+        )
+      }
 
       <FollowListModal
         isOpen={showFollowersModal}
@@ -652,7 +675,7 @@ const Profile = () => {
         isAuthenticated={!!currentUser}
         currentUser={currentUser}
       />
-    </div>
+    </div >
   );
 };
 

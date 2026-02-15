@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, User, Lock, Bookmark, LogOut, MessageSquareQuote } from "lucide-react";
+import { Menu, User, Lock, Bookmark, LogOut, MessageSquareQuote, LifeBuoy } from "lucide-react";
 import { UserPublic } from "@/database/types";
 import { useNavigate } from "react-router-dom";
 
@@ -85,6 +85,15 @@ const Sidebar = ({ currentUser, onLogout }: SidebarProps) => {
             >
               <Bookmark className="h-5 w-5" />
               Saved Posts
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+              onClick={() => window.open('/support', '_blank')}
+            >
+              <LifeBuoy className="h-5 w-5" />
+              Support
             </Button>
 
             <Button
