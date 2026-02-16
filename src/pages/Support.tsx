@@ -33,7 +33,7 @@ const Support = () => {
         },
         {
             question: "Is my identity anonymous in confessions?",
-            answer: "Yes! Confessions are completely anonymous. We do not display your username or any personal information on confession posts. However, our admins can see the author for moderation purposes to prevent abuse."
+            answer: "Yes! Confessions are completely anonymous. We do not display your username or any personal information on confession posts."
         },
         {
             question: "Who can see my profile?",

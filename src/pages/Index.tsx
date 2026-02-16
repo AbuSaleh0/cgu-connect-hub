@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import PostCard from "@/components/PostCard";
@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { dbService } from "@/database";
 import { sessionManager } from "@/lib/session";
 import { convertDbPostToCardData, PostCardData } from "@/database/utils";
+import PostDetailModal from "@/components/PostDetailModal";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Load persisted auth view state on mount
   const loadAuthView = (): "feed" | "login" | "signup" => {
@@ -375,6 +377,22 @@ const Index = () => {
           onSignUp={handleSignUpClick}
         />
       )}
+
+      {/* Post Detail Modal (triggered by URL query param) */}
+      <PostDetailModal
+        isOpen={!!searchParams.get('post')}
+        onClose={() => {
+          // Remove query param without refreshing
+          const newUrl = window.location.pathname;
+          window.history.pushState({}, '', newUrl);
+          // Force update to clear modal (since pushState might not trigger searchParams update immediately without context)
+          // Actually, better to use navigate to clear params to keep sync
+          navigate(window.location.pathname, { replace: true });
+        }}
+        postId={searchParams.get('post') ? Number(searchParams.get('post')) : null}
+        currentUser={user}
+        isAuthenticated={isAuthenticated}
+      />
     </div>
   );
 };

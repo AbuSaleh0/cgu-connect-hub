@@ -1,10 +1,17 @@
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Link2, MessageSquare } from "lucide-react";
 import React, { useState, useEffect, FC } from "react";
 import { useNavigate } from "react-router-dom";
 import CommentModal from "./CommentModal";
 import ShareModal from "./ShareModal";
+import ShareToChatModal from "@/components/ShareToChatModal";
 import PostOptionsModal from "./PostOptionsModal";
 import { dbService } from "@/database";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Post {
   id: string;
@@ -48,6 +55,7 @@ const PostCard: FC<PostCardProps> = ({
   const [likeCount, setLikeCount] = useState(post.likes);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showShareChatModal, setShowShareChatModal] = useState(false);
   const [isSaved, setIsSaved] = useState(initialIsSaved);
 
   // Carousel State
@@ -113,14 +121,21 @@ const PostCard: FC<PostCardProps> = ({
     onComment?.();
   };
 
-  const handleShare = () => {
+  const handleShareClick = () => {
     if (!isAuthenticated) {
       onInteractionClick(); // Show login overlay
       return;
     }
+    // Just open dropdown
+  };
 
-    // Open share modal for authenticated users
+  const handleNativeShare = () => {
     setShowShareModal(true);
+    onShare?.();
+  };
+
+  const handleShareToChat = () => {
+    setShowShareChatModal(true);
     onShare?.();
   };
 
@@ -295,43 +310,48 @@ const PostCard: FC<PostCardProps> = ({
             <button
               onClick={handleLike}
               className={`flex items-center gap-2 transition-colors ${isAuthenticated
-                ? 'text-foreground hover:text-destructive cursor-pointer'
-                : 'text-muted-foreground hover:text-foreground cursor-pointer'
+                ? (isLiked ? 'text-destructive' : 'text-foreground hover:text-destructive cursor-pointer')
+                : (isLiked ? 'text-destructive' : 'text-muted-foreground hover:text-foreground cursor-pointer')
                 } group`}
-              title={isAuthenticated ? 'Like this post' : 'Login to like'}
             >
-              <Heart className={`h-6 w-6 ${isLiked ? 'fill-destructive text-destructive' : 'group-hover:scale-110 transition-transform'}`} />
-              <span className="text-sm font-semibold">{likeCount.toLocaleString()}</span>
+              <Heart className={`h-6 w-6 transition-transform group-active:scale-95 ${isLiked ? 'fill-current' : ''}`} />
+              <span className="font-medium">{likeCount}</span>
             </button>
+
             <button
               onClick={handleComment}
-              className={`flex items-center gap-2 transition-colors ${isAuthenticated
-                ? 'text-foreground hover:text-accent cursor-pointer'
-                : 'text-muted-foreground hover:text-foreground cursor-pointer'
-                } group`}
-              title={isAuthenticated ? 'Comment on this post' : 'Login to comment'}
+              className="flex items-center gap-2 text-muted-foreground hover:text-blue-500 transition-colors group cursor-pointer"
             >
-              <MessageCircle className="h-6 w-6 group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-semibold">{post.comments}</span>
+              <MessageCircle className="h-6 w-6 transition-transform group-active:scale-95" />
+              <span className="font-medium">{post.comments}</span>
             </button>
-            <button
-              onClick={handleShare}
-              className={`flex items-center gap-2 transition-colors ${isAuthenticated
-                ? 'text-foreground hover:text-accent cursor-pointer'
-                : 'text-muted-foreground hover:text-foreground cursor-pointer'
-                } group`}
-              title={isAuthenticated ? 'Share this post' : 'Login to share'}
-            >
-              <Send className="h-6 w-6 group-hover:scale-110 transition-transform" />
-            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={handleShareClick}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-green-500 transition-colors group cursor-pointer"
+                >
+                  <Send className="h-6 w-6 transition-transform group-active:scale-95" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={handleNativeShare}>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  <span>Copy Link / Share via...</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleShareToChat}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  <span>Send in Message</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
           </div>
+
           <button
             onClick={handleBookmark}
-            className={`transition-colors ${isAuthenticated
-              ? 'text-foreground hover:text-accent cursor-pointer'
-              : 'text-muted-foreground hover:text-foreground cursor-pointer'
-              }`}
-            title={isAuthenticated ? 'Bookmark this post' : 'Login to bookmark'}
+            className={`transition-colors ${isSaved ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
           >
             <Bookmark className={`h-6 w-6 ${isSaved ? 'fill-current' : ''}`} />
           </button>
@@ -368,7 +388,19 @@ const PostCard: FC<PostCardProps> = ({
         postUsername={post.username}
       />
 
-
+      {currentUser && (
+        <ShareToChatModal
+          isOpen={showShareChatModal}
+          onClose={() => setShowShareChatModal(false)}
+          post={{
+            id: Number(post.id),
+            username: post.username,
+            image: post.image,
+            caption: post.caption,
+            user: { username: post.username, avatar: post.userAvatar }
+          }}
+        />
+      )}
     </article>
   );
 };

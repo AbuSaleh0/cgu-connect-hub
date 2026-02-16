@@ -1,8 +1,9 @@
-import { Heart, MessageCircle, Send, MoreHorizontal, MessageSquareQuote, Flag, Bookmark, Share2, Clipboard, Trash } from "lucide-react";
+import { Heart, MessageCircle, Send, MoreHorizontal, MessageSquareQuote, Flag, Bookmark, Share2, Clipboard, Trash, Link2, MessageSquare } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { dbService } from "@/database";
 import { Confession } from "@/database/types";
 import { useToast } from "@/components/ui/use-toast";
+import ShareToChatModal from "@/components/ShareToChatModal";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -25,6 +26,7 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
     const [isSaved, setIsSaved] = useState(false);
     const [likeCount, setLikeCount] = useState(confession.likes_count);
     const [commentsCount, setCommentsCount] = useState(confession.comments_count);
+    const [showShareChatModal, setShowShareChatModal] = useState(false);
 
     // Check if liked/saved on mount
     useEffect(() => {
@@ -76,7 +78,15 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
         }
     };
 
-    const handleShare = async () => {
+    const handleShareClick = () => {
+        if (!isAuthenticated) {
+            onInteractionClick(); // Show login overlay
+            return;
+        }
+        // Open dropdown
+    };
+
+    const handleNativeShare = async () => {
         const shareData = {
             title: 'Confession on CGU Connect Hub',
             text: `Check out this confession: "${confession.content.substring(0, 50)}..."`,
@@ -92,6 +102,10 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
         } else {
             handleCopyLink();
         }
+    };
+
+    const handleShareToChat = () => {
+        setShowShareChatModal(true);
     };
 
     const handleCopyLink = () => {
@@ -154,7 +168,7 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
 
     return (
         <article className="bg-card rounded-lg shadow-card hover:shadow-card-hover transition-shadow border border-border/50">
-            {/* Header */}
+            {/* Header ... */}
             <div className="flex items-center justify-between p-4 border-b border-border/50 bg-muted/20">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
@@ -177,9 +191,13 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
                             <Bookmark className={`h-4 w-4 mr-2 ${isSaved ? 'fill-current' : ''}`} />
                             {isSaved ? 'Unsave' : 'Save'}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleShare}>
+                        <DropdownMenuItem onClick={handleNativeShare}>
                             <Share2 className="h-4 w-4 mr-2" />
                             Share to...
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleShareToChat}>
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Send in Message
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={handleCopyLink}>
                             <Clipboard className="h-4 w-4 mr-2" />
@@ -227,14 +245,37 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
                         <span className="text-sm font-semibold">{commentsCount}</span>
                     </button>
 
-                    <button
-                        onClick={handleShare}
-                        className="flex items-center gap-2 text-muted-foreground hover:text-green-500 transition-colors group"
-                    >
-                        <Send className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                    </button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                onClick={handleShareClick}
+                                className="flex items-center gap-2 text-muted-foreground hover:text-green-500 transition-colors group"
+                            >
+                                <Send className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={handleNativeShare}>
+                                <Link2 className="mr-2 h-4 w-4" />
+                                <span>Copy Link / Share via...</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleShareToChat}>
+                                <MessageSquare className="mr-2 h-4 w-4" />
+                                <span>Send in Message</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                 </div>
             </div>
+
+            {currentUser && (
+                <ShareToChatModal
+                    isOpen={showShareChatModal}
+                    onClose={() => setShowShareChatModal(false)}
+                    confession={confession}
+                />
+            )}
         </article>
     );
 };

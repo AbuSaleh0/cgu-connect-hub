@@ -487,7 +487,14 @@ export class DatabaseService {
             .from('messages')
             .select(`
                 *,
-                sender:users!messages_sender_id_fkey(username, avatar)
+                sender:users!messages_sender_id_fkey(username, avatar),
+                shared_post:posts!messages_shared_post_id_fkey(
+                    id, image, caption,
+                    user:users!posts_user_id_fkey(username, avatar)
+                ),
+                shared_confession:confessions!messages_shared_confession_id_fkey(
+                    id, content
+                )
             `)
             .eq('conversation_id', conversationId)
             .order('created_at', { ascending: true });
@@ -506,9 +513,19 @@ export class DatabaseService {
             content: msg.content,
             message_type: msg.message_type,
             media_url: msg.media_url,
+            shared_post_id: msg.shared_post_id,
+            shared_confession_id: msg.shared_confession_id,
+            is_unsent: msg.is_unsent,
             is_read: msg.is_read,
             created_at: msg.created_at,
-            updated_at: msg.updated_at
+            updated_at: msg.updated_at,
+            shared_post: msg.shared_post ? {
+                id: msg.shared_post.id,
+                image: msg.shared_post.image,
+                caption: msg.shared_post.caption,
+                user: msg.shared_post.user
+            } : undefined,
+            shared_confession: msg.shared_confession
         }));
     }
 
@@ -521,11 +538,20 @@ export class DatabaseService {
                 sender_id: messageData.sender_id,
                 content: messageData.content,
                 message_type: messageData.message_type || 'text',
-                media_url: messageData.media_url
+                media_url: messageData.media_url,
+                shared_post_id: messageData.shared_post_id,
+                shared_confession_id: messageData.shared_confession_id
             })
             .select(`
                 *,
-                sender:users!messages_sender_id_fkey(username, avatar)
+                sender:users!messages_sender_id_fkey(username, avatar),
+                shared_post:posts!messages_shared_post_id_fkey(
+                    id, image, caption,
+                    user:users!posts_user_id_fkey(username, avatar)
+                ),
+                shared_confession:confessions!messages_shared_confession_id_fkey(
+                    id, content
+                )
             `)
             .single();
 
@@ -535,6 +561,14 @@ export class DatabaseService {
         }
 
         // Update conversation's last message info
+        const lastMessageContent = message.is_unsent
+            ? 'This message was unsent'
+            : (message.message_type === 'image' ? 'Sent an image'
+                : message.message_type === 'video' ? 'Sent a video'
+                    : message.message_type === 'post' ? 'Shared a post'
+                        : message.message_type === 'confession' ? 'Shared a confession'
+                            : message.content);
+
         await supabase
             .from('conversations')
             .update({
@@ -553,10 +587,69 @@ export class DatabaseService {
             content: message.content,
             message_type: message.message_type,
             media_url: message.media_url,
+            shared_post_id: message.shared_post_id,
+            shared_confession_id: message.shared_confession_id,
+            is_unsent: message.is_unsent,
             is_read: message.is_read,
             created_at: message.created_at,
-            updated_at: message.updated_at
+            updated_at: message.updated_at,
+            shared_post: message.shared_post,
+            shared_confession: message.shared_confession
         };
+    }
+
+    async unsendMessage(messageId: number, userId: number): Promise<{ success: boolean; error?: string }> {
+        // 1. Fetch message to check ownership and time
+        const { data: message, error: fetchError } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('id', messageId)
+            .single();
+
+        if (fetchError || !message) {
+            return { success: false, error: 'Message not found' };
+        }
+
+        if (message.sender_id !== userId) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
+        const created = new Date(message.created_at);
+        const now = new Date();
+        const diffMins = (now.getTime() - created.getTime()) / 60000;
+
+        if (diffMins > 30) {
+            return { success: false, error: 'Message cannot be unsent after 30 minutes' };
+        }
+
+        // 2. Update message to be hidden
+        const { error: updateError } = await supabase
+            .from('messages')
+            .update({
+                content: 'This message was unsent',
+                is_unsent: true,
+                shared_post_id: null,
+                shared_confession_id: null,
+                media_url: null,
+                message_type: 'text'
+            })
+            .eq('id', messageId);
+
+        if (updateError) {
+            return { success: false, error: updateError.message };
+        }
+
+        return { success: true };
+    }
+
+    async deleteOldMessages(): Promise<void> {
+        // Call the database function
+        const { error } = await supabase.rpc('delete_old_read_messages');
+        if (error) {
+            console.error('Error auto-deleting old messages:', error);
+        } else {
+            console.log('Old messages auto-deleted successfully');
+        }
     }
 
     async getConversationBetweenUsers(user1Id: number, user2Id: number): Promise<Conversation | null> {

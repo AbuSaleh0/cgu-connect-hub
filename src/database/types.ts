@@ -237,8 +237,11 @@ export interface Message {
   conversation_id: number;
   sender_id: number;
   content: string;
-  message_type: 'text' | 'image' | 'video';
+  message_type: 'text' | 'image' | 'video' | 'post' | 'confession';
   media_url?: string;
+  shared_post_id?: number | null;
+  shared_confession_id?: number | null;
+  is_unsent?: boolean;
   is_read: boolean;
   created_at: string;
   updated_at: string;
@@ -247,6 +250,16 @@ export interface Message {
 export interface MessageWithSender extends Message {
   sender_username: string;
   sender_avatar?: string;
+  shared_post?: {
+    id: number;
+    image: string;
+    caption?: string;
+    user?: { username: string; avatar?: string };
+  };
+  shared_confession?: {
+    id: number;
+    content: string;
+  };
 }
 
 export interface CreateConversationData {
@@ -258,8 +271,10 @@ export interface CreateMessageData {
   conversation_id: number;
   sender_id: number;
   content: string;
-  message_type?: 'text' | 'image' | 'video';
+  message_type?: 'text' | 'image' | 'video' | 'post' | 'confession';
   media_url?: string;
+  shared_post_id?: number;
+  shared_confession_id?: number;
 }
 
 // Confession types
