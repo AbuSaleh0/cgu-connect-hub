@@ -45,7 +45,7 @@ const CreatePost = () => {
   useEffect(() => {
     if (success && showSuccessDialog) {
       const timer = setTimeout(() => {
-        console.log("Auto-redirecting after 5 seconds...");
+
         setShowSuccessDialog(false);
         navigate("/");
       }, 5000); // Auto redirect after 5 seconds
@@ -175,7 +175,7 @@ const CreatePost = () => {
         // Compress image and show crop options
         try {
           compressImage(file, 800, 0.7).then((compressedImage) => {
-            console.log("Compressed image size:", (compressedImage.length / 1024 / 1024).toFixed(2), "MB");
+
             setOriginalImage(compressedImage);
 
             // Get image dimensions
@@ -285,7 +285,7 @@ const CreatePost = () => {
 
   const handleCreatePost = async () => {
     if (!currentUser || images.length === 0) {
-      console.log("Missing user or images:", { user: !!currentUser, imagesCount: images.length });
+
       return;
     }
 
@@ -294,11 +294,7 @@ const CreatePost = () => {
     setSuccess(false); // Clear previous success state
 
     try {
-      console.log("Creating post for user:", currentUser.username, "with data:", {
-        user_id: currentUser.id,
-        imagesCount: images.length,
-        caption
-      });
+
 
       const newPost = await dbService.createPost({
         user_id: currentUser.id,
@@ -307,11 +303,11 @@ const CreatePost = () => {
         caption
       });
 
-      console.log("Post created successfully:", newPost);
+
 
       // Double check if the post was actually created
       if (newPost && newPost.id) {
-        console.log("Post validation successful, ID:", newPost.id);
+
         setSuccess(true);
         setShowSuccessDialog(true);
       } else {
@@ -342,13 +338,13 @@ const CreatePost = () => {
   };
 
   const handleDialogConfirm = () => {
-    console.log("Navigating to home page...");
+
     setShowSuccessDialog(false);
 
     // Use window.location.href as a fallback if navigate doesn't work
     try {
       navigate("/");
-      console.log("Navigation attempted with useNavigate");
+
     } catch (error) {
       console.error("Navigate failed, using window.location:", error);
       window.location.href = "/";

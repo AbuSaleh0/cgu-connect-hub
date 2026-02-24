@@ -52,7 +52,7 @@ const Header = ({
             <span>Home</span>
           </button>
           <button
-            onClick={onExploreClick || (() => console.log('Search clicked'))}
+            onClick={onExploreClick || (() => { })}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
           >
             <Search className="h-5 w-5" />

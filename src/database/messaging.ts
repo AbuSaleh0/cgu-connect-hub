@@ -1,8 +1,3 @@
-/**
- * Real-time messaging system using localStorage events
- * This provides Instagram-like real-time messaging functionality
- */
-
 export interface MessageEvent {
   type: 'new_message' | 'message_read' | 'conversation_updated';
   data: {

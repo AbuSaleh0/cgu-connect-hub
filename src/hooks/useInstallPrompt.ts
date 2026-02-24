@@ -29,7 +29,7 @@ export function useInstallPrompt() {
         const handleAppInstalled = () => {
             setIsInstalled(true);
             setDeferredPrompt(null);
-            console.log('App was installed');
+
         };
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -53,9 +53,9 @@ export function useInstallPrompt() {
         const choiceResult = await deferredPrompt.userChoice;
 
         if (choiceResult.outcome === 'accepted') {
-            console.log('User accepted the install prompt');
+
         } else {
-            console.log('User dismissed the install prompt');
+
         }
 
         // We've used the prompt, and can't use it again, throw it away

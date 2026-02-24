@@ -65,16 +65,15 @@ const Index = () => {
 
     return async () => {
       if (isLoading) {
-        console.log('Posts already loading, skipping...');
+
         return;
       }
 
       try {
         isLoading = true;
-        console.log('Loading posts from database...');
+
         const dbPosts = await dbService.getAllPosts();
-        console.log('Posts from database:', dbPosts.length);
-        console.log('Post IDs:', dbPosts.map(p => p.id));
+
 
         // Remove duplicates by ID using Map
         const uniquePostsMap = new Map();
@@ -85,14 +84,14 @@ const Index = () => {
         });
 
         const uniquePosts = Array.from(uniquePostsMap.values());
-        console.log('Unique posts after deduplication:', uniquePosts.length);
+
 
         const formattedPosts = uniquePosts.map(post =>
           convertDbPostToCardData(post, dbService.formatTimestamp)
         );
 
         setPosts(formattedPosts);
-        console.log('Posts set in state:', formattedPosts.length);
+
       } catch (error) {
         console.error('Error loading posts:', error);
         setPosts([]);
@@ -104,7 +103,7 @@ const Index = () => {
 
   useEffect(() => {
     const initializeData = async () => {
-      console.log('Starting initialization...');
+
       try {
         // Check for post creation success
         if (sessionStorage.getItem('postCreated')) {
@@ -112,7 +111,7 @@ const Index = () => {
           sessionStorage.removeItem('postCreated');
         }
 
-        console.log('Checking authentication...');
+
         // Check authentication status
         const loggedIn = sessionManager.isLoggedIn();
         setIsAuthenticated(loggedIn);
@@ -127,22 +126,22 @@ const Index = () => {
           setAuthView("feed"); // Force feed view if logged in
         }
 
-        console.log('Initializing database...');
+
 
         try {
           // Try to initialize SQLite database first
           await dbService.initialize();
-          console.log('SQLite database initialized successfully');
+
         } catch (error) {
           console.error('SQLite initialization failed:', error);
-          console.log('App will continue with limited functionality');
+
           // Don't throw - let the app continue
         }
 
-        console.log('Loading posts...');
+
         // Load posts
         await loadPosts();
-        console.log('Initialization complete');
+
       } catch (error) {
         console.error('Error initializing data:', error);
         setPosts([]);

@@ -49,12 +49,12 @@ const App = () => {
   }, []);
 
   const handleLogin = async (session: any) => {
-    console.log("App: Handling login with session:", session);
+
     try {
       // Sync user to DB and update local session
-      console.log("App: Syncing user...");
+
       const { user, isNew } = await dbService.syncUserWithSupabase();
-      console.log("App: Sync result:", user);
+
 
       if (user) {
         // Security Check: Enforce Domain Restriction
@@ -70,12 +70,12 @@ const App = () => {
           return;
         }
 
-        console.log("App: Login successful, updating session manager");
+
         sessionManager.login(user);
 
         // Check if user needs to set up profile
         if (!user.profile_setup_complete) {
-          console.log("App: User needs profile setup, redirecting...");
+
           if (window.location.pathname !== '/profile-setup') {
             window.location.href = '/profile-setup';
           }

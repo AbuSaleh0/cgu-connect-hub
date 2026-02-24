@@ -97,7 +97,7 @@ const ConfessionPostCard: React.FC<ConfessionPostCardProps> = ({ confession, onI
             try {
                 await navigator.share(shareData);
             } catch (err) {
-                console.log('Error sharing:', err);
+                console.error('Error sharing:', err);
             }
         } else {
             handleCopyLink();

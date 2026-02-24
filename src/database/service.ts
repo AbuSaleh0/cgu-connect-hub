@@ -12,16 +12,16 @@ import {
 export class DatabaseService {
 
     async syncUserWithSupabase(): Promise<{ user: User | null; isNew: boolean }> {
-        console.log("Syncing user with Supabase...");
+
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError || !session?.user) {
-            console.log("No session found.");
+
             return { user: null, isNew: false };
         }
 
         const authUser = session.user;
-        console.log("Session user found:", authUser.email);
+
 
         // Fetch user profile linked to this Auth ID
         const { data: userProfile, error } = await supabase
@@ -37,7 +37,7 @@ export class DatabaseService {
             return { user: null, isNew: false };
         }
 
-        console.log("User profile found:", userProfile);
+
         return { user: userProfile as User, isNew: false };
     }
 
@@ -413,7 +413,7 @@ export class DatabaseService {
         if (error) {
             console.error('Error creating notification:', error);
         } else {
-            console.log('Notification created successfully');
+
         }
     }
 
@@ -648,7 +648,7 @@ export class DatabaseService {
         if (error) {
             console.error('Error auto-deleting old messages:', error);
         } else {
-            console.log('Old messages auto-deleted successfully');
+
         }
     }
 
@@ -791,7 +791,7 @@ export class DatabaseService {
             };
         });
 
-        console.log('Final Mapped Comments:', mappedComments);
+
         return mappedComments;
     }
 
@@ -824,7 +824,7 @@ export class DatabaseService {
 
             if (post) {
                 // Delete the exact notification using comment_id
-                console.log(`Attempting to delete notification for comment_id=${commentId}`);
+
 
                 const { error: notificationError, count } = await supabase
                     .from('notifications')
@@ -836,7 +836,7 @@ export class DatabaseService {
                 if (notificationError) {
                     console.error('Error deleting comment notification:', notificationError);
                 } else {
-                    console.log(`Deleted ${count} notifications`);
+
                 }
             }
         }
@@ -876,7 +876,7 @@ export class DatabaseService {
                 ? commentData.content.substring(0, 50) + "..."
                 : commentData.content;
 
-            console.log(`Creating notification for user ${post.user_id} from ${commentData.user_id}`);
+
 
             await this.createNotification({
                 user_id: post.user_id,
@@ -921,7 +921,7 @@ export class DatabaseService {
 
     async initialize(): Promise<void> {
         // No-op for Supabase as it's cloud-based
-        console.log("Database initialized");
+
         return Promise.resolve();
     }
 

@@ -28,7 +28,7 @@ const ChangeUsernameModal = ({
   currentUser,
   onUsernameUpdated
 }: ChangeUsernameModalProps) => {
-  console.log('ChangeUsernameModal props:', { isOpen, currentUser: currentUser?.username });
+
 
   const [newUsername, setNewUsername] = useState("");
   const [isChecking, setIsChecking] = useState(false);
@@ -119,7 +119,7 @@ const ChangeUsernameModal = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted with username:', newUsername);
+
 
     const validationError = validateUsername(newUsername);
     if (validationError) {
@@ -141,15 +141,15 @@ const ChangeUsernameModal = ({
     setError("");
 
     try {
-      console.log('Attempting to update username from', currentUser.username, 'to', newUsername);
+
       const success = await dbService.updateUsername(currentUser.id, newUsername);
-      console.log('Update result:', success);
+
       if (success) {
-        console.log('Username update successful, calling onUsernameUpdated');
+
         onUsernameUpdated(newUsername);
         onClose();
       } else {
-        console.log('Username update failed');
+
         setError("Failed to update username. Please try again.");
       }
     } catch (err) {
@@ -161,13 +161,7 @@ const ChangeUsernameModal = ({
   };
 
   const isFormValid = newUsername.trim() && !error && isAvailable && !isChecking;
-  console.log('Form validation:', {
-    newUsername: newUsername.trim(),
-    hasError: !!error,
-    isAvailable,
-    isChecking,
-    isFormValid
-  });
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

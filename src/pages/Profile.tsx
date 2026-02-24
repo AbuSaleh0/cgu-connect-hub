@@ -43,15 +43,11 @@ const Profile = () => {
 
 
   useEffect(() => {
-    console.log('showChangeUsernameModal state changed:', showChangeUsernameModal);
+
   }, [showChangeUsernameModal]);
 
   const isOwnProfile = currentUser?.username === username;
-  console.log('Profile page debug:', {
-    currentUsername: currentUser?.username,
-    pageUsername: username,
-    isOwnProfile
-  });
+
 
   const loadUserData = async () => {
     if (username) {
@@ -70,13 +66,7 @@ const Profile = () => {
           // Double-check: filter posts to ensure only this user's posts
           const filteredPosts = userPosts.filter(post => post.user_id === foundUser.id);
 
-          console.log('Profile posts debug:', {
-            username: foundUser.username,
-            userId: foundUser.id,
-            totalPosts: userPosts.length,
-            filteredPosts: filteredPosts.length,
-            postOwners: userPosts.map(p => ({ id: p.id, owner: p.username, userId: p.user_id }))
-          });
+
 
           setPosts(filteredPosts);
 
@@ -205,10 +195,10 @@ const Profile = () => {
   };
 
   const handlePostClick = (post: PostWithUser) => {
-    console.log('handlePostClick called with post:', post);
+
     setSelectedPost(post);
     setShowPostsView(true);
-    console.log('Modal state updated - showPostsView set');
+
   };
 
   const handleClosePostView = async () => {
@@ -263,11 +253,23 @@ const Profile = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">User not found</h1>
-          <Button onClick={() => navigate("/")} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to feed
-          </Button>
+          <h1 className="text-2xl font-bold mb-4">User not found</h1>
+          <div className="flex gap-4 justify-center">
+            <Button onClick={() => navigate("/")} variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to feed
+            </Button>
+            <Button
+              onClick={() => {
+                sessionManager.logout();
+                navigate("/");
+              }}
+              variant="default"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Back to Sign Up
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -420,7 +422,7 @@ const Profile = () => {
           {isOwnProfile && (
             <Button
               onClick={() => {
-                console.log('Menu button clicked, showMenu:', showMenu);
+
                 setShowMenu(!showMenu);
               }}
               size="sm"

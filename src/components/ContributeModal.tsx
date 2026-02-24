@@ -45,7 +45,7 @@ const ContributeModal = ({ isOpen, onClose }: ContributeModalProps) => {
                 order_id: orderData.id,
                 handler: async (response: any) => {
                     // Success Handler
-                    console.log("Payment Successful:", response);
+
                     toast.success(`Thank you for your contribution of ₹${amount}!`);
                     onClose();
                 },
