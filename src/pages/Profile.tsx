@@ -39,7 +39,7 @@ const Profile = () => {
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostWithUser | null>(null);
   const [showPostsView, setShowPostsView] = useState(false);
-  const { isInstallable, promptToInstall } = useInstallPrompt();
+  const { isInstallable, isInstalled, promptToInstall } = useInstallPrompt();
 
 
   useEffect(() => {
@@ -369,19 +369,7 @@ const Profile = () => {
                 <span className="truncate">Contribute</span>
               </Button>
 
-              {isInstallable && (
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-3 text-sm py-2 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  onClick={() => {
-                    setShowMenu(false);
-                    promptToInstall();
-                  }}
-                >
-                  <Download className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">Install App</span>
-                </Button>
-              )}
+
 
               <div className="border-t pt-1 mt-1">
                 <Button
@@ -418,20 +406,41 @@ const Profile = () => {
             <h1 className="text-xl font-semibold">{user.username}</h1>
           </div>
 
-          {/* Menu Button - Only for own profile */}
-          {isOwnProfile && (
+          <div className="flex items-center gap-2">
+            {/* Install App Button - Always visible */}
             <Button
-              onClick={() => {
-
-                setShowMenu(!showMenu);
-              }}
+              variant="outline"
               size="sm"
-              variant={showMenu ? "default" : "outline"}
-              className="flex-shrink-0"
+              onClick={() => {
+                if (isInstalled) {
+                  alert("App is already installed on your device.");
+                } else if (isInstallable) {
+                  promptToInstall();
+                } else {
+                  alert("Refreshing the page, Please Click on install button again to install the app.");
+                  window.location.reload();
+                }
+              }}
+              className="flex-shrink-0 text-blue-600 border-blue-200 hover:bg-blue-50"
             >
-              {showMenu ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Install App</span>
             </Button>
-          )}
+
+            {/* Menu Button - Only for own profile */}
+            {isOwnProfile && (
+              <Button
+                onClick={() => {
+                  setShowMenu(!showMenu);
+                }}
+                size="sm"
+                variant={showMenu ? "default" : "outline"}
+                className="flex-shrink-0"
+              >
+                {showMenu ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6 md:space-y-8">
