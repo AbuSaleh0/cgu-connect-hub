@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { MessageWithSender } from '@/database/types';
 import { format } from 'date-fns';
 import { MoreHorizontal, Trash2 } from 'lucide-react';
@@ -18,6 +18,8 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showSeen, onUnsend }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const canUnsend = () => {
         if (!isOwn || message.is_unsent) return false;
@@ -110,13 +112,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showSeen,
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-gray-100 text-gray-900'
                             } ${message.message_type === 'post' || message.message_type === 'confession' ? 'p-1' : ''}`}
+                        onTouchStart={() => {
+                            if (!canUnsend()) return;
+                            longPressTimerRef.current = setTimeout(() => {
+                                setIsOpen(true);
+                            }, 500);
+                        }}
+                        onTouchEnd={() => {
+                            if (longPressTimerRef.current) {
+                                clearTimeout(longPressTimerRef.current);
+                                longPressTimerRef.current = null;
+                            }
+                        }}
+                        onTouchMove={() => {
+                            if (longPressTimerRef.current) {
+                                clearTimeout(longPressTimerRef.current);
+                                longPressTimerRef.current = null;
+                            }
+                        }}
+                        onContextMenu={(e) => {
+                            if (canUnsend()) e.preventDefault();
+                        }}
                     >
                         {renderContent()}
                     </div>
 
                     {/* Context Menu for Own Messages */}
                     {isOwn && !message.is_unsent && canUnsend() && (
-                        <DropdownMenu>
+                        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
                             <DropdownMenuTrigger asChild>
                                 <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-gray-600 focus:opacity-100">
                                     <MoreHorizontal size={14} />
@@ -125,7 +148,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showSeen,
                             <DropdownMenuContent align={isOwn ? "end" : "start"}>
                                 <DropdownMenuItem
                                     className="text-red-500 focus:text-red-500"
-                                    onClick={() => onUnsend && onUnsend(message.id)}
+                                    onClick={() => {
+                                        setIsOpen(false);
+                                        if (onUnsend) onUnsend(message.id);
+                                    }}
                                 >
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Unsend Message
