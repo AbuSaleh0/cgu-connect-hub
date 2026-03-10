@@ -8,6 +8,7 @@ import { Send, MoreHorizontal, Trash, Flag } from "lucide-react";
 import { dbService } from "@/database";
 import { CommentWithUser } from "@/database/types";
 import { formatTimeAgo } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,7 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser, isPostOwner }: Com
   const navigate = useNavigate();
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<CommentWithUser[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Interaction states for comments
   const [selectedComment, setSelectedComment] = useState<CommentWithUser | null>(null);
@@ -44,6 +46,31 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser, isPostOwner }: Com
     }
   }, [isOpen, postId]);
 
+  // Listen for realtime comment deletions
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const channel = supabase
+      .channel('comments_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'comments'
+        },
+        (payload) => {
+          const deletedId = payload.old.id;
+          setComments(current => current.filter(c => c.id !== deletedId));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen]);
+
   const loadComments = async () => {
     try {
       const postComments = await dbService.getPostComments(Number(postId));
@@ -55,9 +82,10 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser, isPostOwner }: Com
   };
 
   const handleSubmitComment = async () => {
-    if (!currentUser || !comment.trim()) return;
+    if (!currentUser || !comment.trim() || isSubmitting) return;
 
     try {
+      setIsSubmitting(true);
       const newComment = await dbService.createComment({
         user_id: currentUser.id,
         post_id: Number(postId),
@@ -73,6 +101,8 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser, isPostOwner }: Com
     } catch (error) {
       console.error("Error creating comment:", error);
       alert("An error occurred while commenting.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -199,12 +229,13 @@ const CommentModal = ({ isOpen, onClose, postId, currentUser, isPostOwner }: Com
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Add a comment..."
-                onKeyPress={(e) => e.key === 'Enter' && handleSubmitComment()}
+                onKeyPress={(e) => !isSubmitting && e.key === 'Enter' && handleSubmitComment()}
                 className="flex-1"
+                disabled={isSubmitting}
               />
               <Button
                 onClick={handleSubmitComment}
-                disabled={!comment.trim()}
+                disabled={!comment.trim() || isSubmitting}
                 size="sm"
               >
                 <Send className="h-4 w-4" />

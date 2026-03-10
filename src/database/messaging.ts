@@ -16,7 +16,7 @@ class MessageEventSystem {
   constructor() {
     // Listen for localStorage changes (cross-tab communication)
     window.addEventListener('storage', this.handleStorageEvent.bind(this));
-    
+
     // Listen for same-tab events
     window.addEventListener('message-event', this.handleMessageEvent.bind(this));
   }
@@ -30,12 +30,12 @@ class MessageEventSystem {
       id: Date.now() + Math.random(),
       timestamp: new Date().toISOString()
     });
-    
+
     // Keep only last 100 events to prevent storage overflow
     if (events.length > 100) {
       events.splice(0, events.length - 100);
     }
-    
+
     localStorage.setItem(this.storageKey, JSON.stringify(events));
 
     // Dispatch custom event for same-tab listeners
@@ -156,20 +156,49 @@ export const useMessageEvents = (eventType: string = '*', callback?: (event: Mes
 };
 
 // React hook for real-time message updates
+import { supabase } from '@/lib/supabase';
+
 export const useRealtimeMessages = (conversationId: number | null) => {
   const [shouldRefresh, setShouldRefresh] = useState(false);
 
   useEffect(() => {
     if (!conversationId) return;
 
+    // Local event listener (still useful for optimistic UI updates in same tab)
     const handleMessageEvent = (event: MessageEvent) => {
       if (event.data.conversationId === conversationId) {
         setShouldRefresh(true);
       }
     };
 
-    const unsubscribe = messageEventSystem.on('new_message', handleMessageEvent);
-    return unsubscribe;
+    const unsubscribeLocal = messageEventSystem.on('new_message', handleMessageEvent);
+
+    // Supabase Realtime subscription
+    const channel = supabase
+      .channel(`room_${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          console.log('Realtime message received:', payload);
+          setShouldRefresh(true);
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`Subscribed to real-time messages for conversation ${conversationId}`);
+        }
+      });
+
+    return () => {
+      unsubscribeLocal();
+      supabase.removeChannel(channel);
+    };
   }, [conversationId]);
 
   const resetRefresh = useCallback(() => {
@@ -214,7 +243,7 @@ export const useUnreadCount = (userId: number | null) => {
     const polling = setInterval(updateUnreadCount, 5000); // Check every 5 seconds
 
     const unsubscribe = messageEventSystem.on('*', handleMessageEvent);
-    
+
     return () => {
       unsubscribe();
       clearInterval(polling);

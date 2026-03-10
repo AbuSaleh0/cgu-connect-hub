@@ -15,6 +15,7 @@ import FeedbackModal from "@/components/FeedbackModal";
 import ContributeModal from "@/components/ContributeModal";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import PostsView from "@/components/PostsView";
+import { supabase } from "@/lib/supabase";
 
 const Profile = () => {
   const { username } = useParams();
@@ -136,6 +137,29 @@ const Profile = () => {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [user]);
+
+  // Listen for realtime post deletions
+  useEffect(() => {
+    const channel = supabase
+      .channel('profile_posts_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'posts'
+        },
+        (payload) => {
+          const deletedPostId = payload.old.id;
+          setPosts((currentPosts) => currentPosts.filter(p => Number(p.id) !== deletedPostId));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Close menu on Escape key
   useEffect(() => {

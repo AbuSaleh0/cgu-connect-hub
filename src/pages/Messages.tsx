@@ -4,6 +4,7 @@ import { sessionManager } from "@/lib/session";
 import { dbService } from "@/database/service";
 import { messageEventSystem } from "@/database/messaging";
 import { User, ConversationWithUsers } from "@/database/types";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -169,12 +170,26 @@ const Messages = () => {
       }
     }
 
-    // Realtime updates
+    // Realtime updates (Local Events)
     const handleMessageReadEvent = () => loadConversations();
     const handleNewMessageEvent = () => loadConversations();
 
     const unsubscribeRead = messageEventSystem.on('message_read', handleMessageReadEvent);
     const unsubscribeNew = messageEventSystem.on('new_message', handleNewMessageEvent);
+
+    // Supabase Realtime for Conversation List Updates
+    // We listen to ANY changes in the messages table to refresh the latest message snippets
+    const conversationChannel = supabase
+      .channel('public:messages')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        (payload) => {
+          console.log('Conversation list realtime update:', payload);
+          loadConversations();
+        }
+      )
+      .subscribe();
 
     const interval = setInterval(() => loadConversations(), 3000);
 
@@ -182,6 +197,7 @@ const Messages = () => {
       clearInterval(interval);
       unsubscribeRead();
       unsubscribeNew();
+      supabase.removeChannel(conversationChannel);
     };
   }, [currentUser?.id, searchParams, searchTerm]);
 

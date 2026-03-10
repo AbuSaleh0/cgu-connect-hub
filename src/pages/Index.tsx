@@ -10,6 +10,7 @@ import { dbService } from "@/database";
 import { sessionManager } from "@/lib/session";
 import { convertDbPostToCardData, PostCardData } from "@/database/utils";
 import PostDetailModal from "@/components/PostDetailModal";
+import { supabase } from "@/lib/supabase";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -162,6 +163,29 @@ const Index = () => {
 
     return () => {
       clearTimeout(timeoutId);
+    };
+  }, []);
+
+  // Listen for realtime post deletions
+  useEffect(() => {
+    const channel = supabase
+      .channel('feed_posts_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'posts'
+        },
+        (payload) => {
+          const deletedPostId = payload.old.id;
+          setPosts((currentPosts) => currentPosts.filter(p => Number(p.id) !== deletedPostId));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -338,6 +362,7 @@ const Index = () => {
                 onInteractionClick={handleInteractionClick}
                 isAuthenticated={isAuthenticated}
                 currentUser={user}
+                onDelete={() => setPosts(current => current.filter(p => Number(p.id) !== Number(post.id)))}
               />
             ))
           ) : (

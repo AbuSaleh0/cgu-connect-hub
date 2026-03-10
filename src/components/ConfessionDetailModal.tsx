@@ -34,6 +34,7 @@ const ConfessionDetailModal = ({ isOpen, onClose, confession, currentUser }: Con
     const [comments, setComments] = useState<ConfessionCommentWithUser[]>([]);
     const [newComment, setNewComment] = useState("");
     const [loading, setLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Interaction states
     const [selectedComment, setSelectedComment] = useState<ConfessionCommentWithUser | null>(null);
@@ -60,9 +61,10 @@ const ConfessionDetailModal = ({ isOpen, onClose, confession, currentUser }: Con
     };
 
     const handleAddComment = async () => {
-        if (!currentUser || !newComment.trim() || !confession) return;
+        if (!currentUser || !newComment.trim() || !confession || isSubmitting) return;
 
         try {
+            setIsSubmitting(true);
             await dbService.createConfessionComment({
                 user_id: currentUser.id,
                 confession_id: confession.id,
@@ -73,6 +75,8 @@ const ConfessionDetailModal = ({ isOpen, onClose, confession, currentUser }: Con
             loadComments();
         } catch (error) {
             console.error("Error adding comment:", error);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -241,13 +245,14 @@ const ConfessionDetailModal = ({ isOpen, onClose, confession, currentUser }: Con
                                         placeholder="Write a comment..."
                                         className="min-h-[40px] max-h-[100px] resize-none"
                                         onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                            if (!isSubmitting && e.key === 'Enter' && !e.shiftKey) {
                                                 e.preventDefault();
                                                 handleAddComment();
                                             }
                                         }}
+                                        disabled={isSubmitting}
                                     />
-                                    <Button onClick={handleAddComment} disabled={!newComment.trim()}>
+                                    <Button onClick={handleAddComment} disabled={!newComment.trim() || isSubmitting}>
                                         <Send className="h-4 w-4" />
                                     </Button>
                                 </div>
